@@ -470,7 +470,6 @@ function Game() {
       scene.add(sunMesh);
       scene.userData.sunPosition = sunPosition;
       await createPlatform();
-      gameState.food = [];
       initializeSpheres();
       loadingComplete = true;
     } catch (error) {
@@ -1247,7 +1246,7 @@ function Game() {
     shareButton.textContent = `SHARE TO X`;
     shareButton.addEventListener('click', () => {
       const tweetText = `🐍 Just scored ${finalScore} points in ASTROWORM's 60-second time attack! My cosmic serpent reached ${finalSnakeLength} segments in the Reality Coil! 🌌⏰`;
-      const gameUrl = 'https://dev.fun/p/c0e5947aa562d27d5083';
+      const gameUrl = window.location.href; // Use current URL for sharing
       const twitterUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(gameUrl)}`;
       window.open(twitterUrl, '_blank', 'width=550,height=420');
     });
@@ -1986,16 +1985,6 @@ function Game() {
         checkAchievements();
         saveAchievements();
       }, true);
-      const playOnlineButton = createMenuButton('PLAY ONLINE', () => {
-        gameModeScreen.classList.remove('fade-in');
-        gameModeScreen.classList.add('fade-out');
-        setTimeout(() => {
-          if (gameModeScreen.parentNode) {
-            document.body.removeChild(gameModeScreen);
-          }
-          showPlaceholderPage('ONLINE MULTIPLAYER');
-        }, 300);
-      });
       const playTimedButton = createMenuButton('PLAY TIMED MATCH', () => {
         gameState.gameMode = 'timed';
         gameState.timeRemaining = 60;
@@ -2039,7 +2028,6 @@ function Game() {
         }, 300);
       });
       gameModeButtonContainer.appendChild(playVsAiButton);
-      gameModeButtonContainer.appendChild(playOnlineButton);
       gameModeButtonContainer.appendChild(playTimedButton);
       gameModeButtonContainer.appendChild(backButton);
       gameModeScreen.appendChild(gameModeTitle);
