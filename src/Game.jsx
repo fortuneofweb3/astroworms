@@ -157,7 +157,7 @@ function Game() {
       @media (max-width: 480px) {
         .game-title {
           font-size: 36px !important;
-          letter-spacing: 4px !important;
+          letterSpacing: 4px !important;
         }
         .menu-button {
           font-size: 14px !important;
@@ -178,14 +178,18 @@ function Game() {
     return () => document.head.removeChild(globalStyle);
   }, []);
 
-  const wallets = [new PhantomWalletAdapter()];
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ], []);
 
-  const content = !wallet.connected || !isProfileCreated ? <ConnectWalletScreen setVisible={setVisible} /> : !isInGame && isInStartScreen ? <StartScreen onStartGame={startGame} wallet={wallet} /> : isInGame ? <GameCanvas mode={gameMode} /> : null;
+  const content = !wallet.connected || !isProfileCreated ? <ConnectWalletScreen setVisible={setVisible} /> : !isInGame && isInStartScreen ? <StartScreen onStartGame={startGame} wallet={wallet} /> : isInGame ? <GameCanvas mode={gameMode} wallet={wallet} setIsInGame={setIsInGame} setIsInStartScreen={setIsInStartScreen} /> : null;
 
   return (
-    <ConnectionProvider endpoint="https://api.mainnet-beta.solana.com">
-      <WalletProvider wallets={wallets} autoConnect>
+    <ConnectionProvider endpoint="https://api.devnet.solana.com">
+      <WalletProvider wallets={wallets} autoConnect={true}>
         <WalletModalProvider>
+          <Background />
           {content}
         </WalletModalProvider>
       </WalletProvider>
@@ -193,36 +197,20 @@ function Game() {
   );
 }
 
-function ConnectWalletScreen({ setVisible }) {
-  const debounce = (func, delay) => {
-    let timeout;
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), delay);
-    };
-  };
-
+function Background() {
   useEffect(() => {
-    const connectScreen = document.createElement('div');
-    connectScreen.id = 'connect-screen';
-    connectScreen.style.cssText = `
+    const background = document.createElement('div');
+    background.id = 'starry-background';
+    background.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
       background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 10000;
-      font-family: monospace;
-      color: white;
+      z-index: 0;
       overflow: hidden;
-      opacity: 0;
     `;
-    connectScreen.classList.add('fade-in');
     const starsContainer = document.createElement('div');
     starsContainer.style.cssText = `
       position: absolute;
@@ -256,7 +244,7 @@ function ConnectWalletScreen({ setVisible }) {
       `;
       starsContainer.appendChild(star);
     }
-    connectScreen.appendChild(starsContainer);
+    background.appendChild(starsContainer);
     const starStyle = document.createElement('style');
     starStyle.textContent = `
       @keyframes twinkle {
@@ -273,6 +261,46 @@ function ConnectWalletScreen({ setVisible }) {
       }
     `;
     document.head.appendChild(starStyle);
+    document.body.appendChild(background);
+    return () => {
+      document.body.removeChild(background);
+      document.head.removeChild(starStyle);
+    };
+  }, []);
+
+  return null;
+}
+
+function ConnectWalletScreen({ setVisible }) {
+  const debounce = (func, delay) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  useEffect(() => {
+    const connectScreen = document.createElement('div');
+    connectScreen.id = 'connect-screen';
+    connectScreen.className = 'page-content';
+    connectScreen.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 900;
+      font-family: monospace;
+      color: white;
+      overflow: hidden;
+      opacity: 0;
+    `;
+    connectScreen.classList.add('fade-in');
     const titleContainer = document.createElement('div');
     titleContainer.style.cssText = `
       text-align: center;
@@ -286,8 +314,8 @@ function ConnectWalletScreen({ setVisible }) {
       font-size: 72px;
       font-weight: bold;
       color: #ffffff;
-      letter-spacing: 8px;
-      margin-bottom: 20px;
+      letterSpacing: 8px;
+      marginBottom: 20px;
     `;
     gameTitle.textContent = `ASTROWORM`;
     const subtitle = document.createElement('div');
@@ -295,8 +323,8 @@ function ConnectWalletScreen({ setVisible }) {
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.9;
-      letter-spacing: 2px;
-      margin-bottom: 40px;
+      letterSpacing: 2px;
+      marginBottom: 40px;
     `;
     subtitle.textContent = `Connect your wallet to enter the Reality Coil`;
     titleContainer.appendChild(gameTitle);
@@ -312,7 +340,7 @@ function ConnectWalletScreen({ setVisible }) {
       font-weight: bold;
       border-radius: 10px;
       cursor: pointer;
-      letter-spacing: 2px;
+      letterSpacing: 2px;
       transition: all 0.3s ease;
       min-width: 250px;
       z-index: 2;
@@ -330,13 +358,15 @@ function ConnectWalletScreen({ setVisible }) {
     connectButton.addEventListener('mouseleave', handleLeave);
     connectButton.addEventListener('touchstart', handleEnter);
     connectButton.addEventListener('touchend', handleLeave);
-    connectButton.addEventListener('click', debounce(() => setVisible(true), 300));
+    connectButton.addEventListener('click', debounce(() => {
+      console.log('Connect button clicked - triggering modal');
+      setVisible(true);
+    }, 300));
     connectScreen.appendChild(titleContainer);
     connectScreen.appendChild(connectButton);
     document.body.appendChild(connectScreen);
     return () => {
       document.body.removeChild(connectScreen);
-      document.head.removeChild(starStyle);
       connectButton.removeEventListener('mouseenter', handleEnter);
       connectButton.removeEventListener('mouseleave', handleLeave);
       connectButton.removeEventListener('touchstart', handleEnter);
@@ -354,7 +384,7 @@ const achievements = {
     description: 'Play your first game',
     icon: '🌟',
     unlocked: false,
-    condition: () => gameState.gamesPlayed >= 1
+    condition: (gamesPlayed) => gamesPlayed >= 1
   },
   scoreNovice: {
     id: 'scoreNovice',
@@ -362,7 +392,7 @@ const achievements = {
     description: 'Reach 250 points',
     icon: '⭐',
     unlocked: false,
-    condition: () => gameState.highestScore >= 250
+    condition: (highestScore) => highestScore >= 250
   },
   scoreAdept: {
     id: 'scoreAdept',
@@ -370,7 +400,7 @@ const achievements = {
     description: 'Reach 1000 points',
     icon: '🌠',
     unlocked: false,
-    condition: () => gameState.highestScore >= 1000
+    condition: (highestScore) => highestScore >= 1000
   },
   scoreMaster: {
     id: 'scoreMaster',
@@ -378,7 +408,7 @@ const achievements = {
     description: 'Reach 2500 points',
     icon: '💫',
     unlocked: false,
-    condition: () => gameState.highestScore >= 2500
+    condition: (highestScore) => highestScore >= 2500
   },
   lengthGrower: {
     id: 'lengthGrower',
@@ -386,7 +416,7 @@ const achievements = {
     description: 'Reach 30 segments',
     icon: '🐍',
     unlocked: false,
-    condition: () => gameState.longestSnake >= 30
+    condition: (longestSnake) => longestSnake >= 30
   },
   lengthTitan: {
     id: 'lengthTitan',
@@ -394,7 +424,7 @@ const achievements = {
     description: 'Reach 75 segments',
     icon: '🐉',
     unlocked: false,
-    condition: () => gameState.longestSnake >= 75
+    condition: (longestSnake) => longestSnake >= 75
   },
   speedDemon: {
     id: 'speedDemon',
@@ -402,7 +432,7 @@ const achievements = {
     description: 'Complete a timed game with 30+ seconds left',
     icon: '⚡',
     unlocked: false,
-    condition: () => false // Set in checkSphereCollisions
+    condition: (timeRemaining, score, gameMode) => gameMode === 'timed' && timeRemaining >= 30 && score >= 100
   },
   survivor: {
     id: 'survivor',
@@ -410,7 +440,7 @@ const achievements = {
     description: 'Survive for 5 minutes in one game',
     icon: '🛡️',
     unlocked: false,
-    condition: () => false // Set in gameOver
+    condition: (elapsedTime) => elapsedTime >= 300000 // 5 minutes in ms
   },
   glutton: {
     id: 'glutton',
@@ -418,7 +448,7 @@ const achievements = {
     description: 'Eat 250 cosmic fragments total',
     icon: '🍎',
     unlocked: false,
-    condition: () => gameState.spheresEaten >= 250
+    condition: (spheresEaten) => spheresEaten >= 250
   },
   collector: {
     id: 'collector',
@@ -426,7 +456,7 @@ const achievements = {
     description: 'Eat 1000 cosmic fragments total',
     icon: '💎',
     unlocked: false,
-    condition: () => gameState.spheresEaten >= 1000
+    condition: (spheresEaten) => spheresEaten >= 1000
   },
   veteran: {
     id: 'veteran',
@@ -434,7 +464,7 @@ const achievements = {
     description: 'Play 25 games',
     icon: '🏆',
     unlocked: false,
-    condition: () => gameState.gamesPlayed >= 25
+    condition: (gamesPlayed) => gamesPlayed >= 25
   },
   timeAttacker: {
     id: 'timeAttacker',
@@ -442,7 +472,7 @@ const achievements = {
     description: 'Score 500+ in timed mode',
     icon: '⏰',
     unlocked: false,
-    condition: () => gameState.bestTimedScore >= 500
+    condition: (bestTimedScore) => bestTimedScore >= 500
   },
   perfectionist: {
     id: 'perfectionist',
@@ -450,7 +480,7 @@ const achievements = {
     description: 'Score 5000+ points',
     icon: '🔥',
     unlocked: false,
-    condition: () => gameState.highestScore >= 5000
+    condition: (highestScore) => highestScore >= 5000
   },
   leviathan: {
     id: 'leviathan',
@@ -458,7 +488,7 @@ const achievements = {
     description: 'Reach 150 segments',
     icon: '🌌',
     unlocked: false,
-    condition: () => gameState.longestSnake >= 150
+    condition: (longestSnake) => longestSnake >= 150
   },
   dedication: {
     id: 'dedication',
@@ -466,7 +496,7 @@ const achievements = {
     description: 'Play for 120 minutes total',
     icon: '⌛',
     unlocked: false,
-    condition: () => gameState.totalPlayTime >= 7200000
+    condition: (totalPlayTime) => totalPlayTime >= 7200000 // 120 min in ms
   }
 };
 
@@ -492,7 +522,7 @@ function StartScreen({ onStartGame, wallet }) {
       font-weight: bold;
       border-radius: 10px;
       cursor: pointer;
-      letter-spacing: 2px;
+      letterSpacing: 2px;
       transition: all 0.3s ease;
       min-width: 200px;
     `;
@@ -515,13 +545,13 @@ function StartScreen({ onStartGame, wallet }) {
 
   function showPlaceholderPage(title, backToStart) {
     const placeholderScreen = document.createElement('div');
-    placeholderScreen.className = 'custom-popup';
     placeholderScreen.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -537,9 +567,9 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 48px;
       font-weight: bold;
       color: #4169e1;
-      letter-spacing: 4px;
-      margin-bottom: 30px;
-      text-align: center;
+      letterSpacing: 4px;
+      marginBottom: 30px;
+      textAlign: center;
     `;
     pageTitle.textContent = title;
     const comingSoonText = document.createElement('div');
@@ -547,8 +577,8 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 24px;
       color: #ffffff;
       opacity: 0.8;
-      margin-bottom: 40px;
-      text-align: center;
+      marginBottom: 40px;
+      textAlign: center;
     `;
     comingSoonText.textContent = `Coming Soon to the Reality Coil`;
     const backButton = createMenuButton('BACK TO MAIN MENU', () => {
@@ -565,13 +595,13 @@ function StartScreen({ onStartGame, wallet }) {
 
   function showAchievementsScreen(backToStart) {
     const achievementsScreen = document.createElement('div');
-    achievementsScreen.className = 'custom-popup';
     achievementsScreen.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
       display: flex;
       flex-direction: column;
       z-index: 10001;
@@ -596,8 +626,8 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 48px;
       font-weight: bold;
       color: #4169e1;
-      letter-spacing: 4px;
-      margin-bottom: 10px;
+      letterSpacing: 4px;
+      marginBottom: 10px;
     `;
     achievementsTitle.textContent = `ACHIEVEMENTS`;
     const subtitle = document.createElement('div');
@@ -605,7 +635,7 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.8;
-      margin-bottom: 20px;
+      marginBottom: 20px;
     `;
     const unlockedCount = Object.values(achievements).filter(a => a.unlocked).length;
     const totalCount = Object.keys(achievements).length;
@@ -632,7 +662,7 @@ function StartScreen({ onStartGame, wallet }) {
     progressText.style.cssText = `
       font-size: 14px;
       color: #00ffff;
-      margin-bottom: 20px;
+      marginBottom: 20px;
     `;
     progressText.textContent = `${Math.round(unlockedCount / totalCount * 100)}% Complete`;
     header.appendChild(achievementsTitle);
@@ -733,13 +763,13 @@ function StartScreen({ onStartGame, wallet }) {
 
   function showGameModeScreen(backToStart) {
     const gameModeScreen = document.createElement('div');
-    gameModeScreen.className = 'custom-popup';
     gameModeScreen.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -755,9 +785,9 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 48px;
       font-weight: bold;
       color: #4169e1;
-      letter-spacing: 4px;
-      margin-bottom: 20px;
-      text-align: center;
+      letterSpacing: 4px;
+      marginBottom: 20px;
+      textAlign: center;
     `;
     gameModeTitle.textContent = `SELECT GAME MODE`;
     const subtitle = document.createElement('div');
@@ -765,8 +795,8 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.8;
-      margin-bottom: 40px;
-      text-align: center;
+      marginBottom: 40px;
+      textAlign: center;
     `;
     subtitle.textContent = `Choose your path through the Reality Coil`;
     const gameModeButtonContainer = document.createElement('div');
@@ -780,9 +810,7 @@ function StartScreen({ onStartGame, wallet }) {
       gameModeScreen.classList.remove('fade-in');
       gameModeScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (gameModeScreen.parentNode) {
-          gameModeScreen.parentNode.removeChild(gameModeScreen);
-        }
+        gameModeScreen.remove();
         onStartGame('normal');
       }, 300);
     }, true);
@@ -790,9 +818,7 @@ function StartScreen({ onStartGame, wallet }) {
       gameModeScreen.classList.remove('fade-in');
       gameModeScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (gameModeScreen.parentNode) {
-          gameModeScreen.parentNode.removeChild(gameModeScreen);
-        }
+        gameModeScreen.remove();
         onStartGame('timed');
       }, 300);
     });
@@ -800,9 +826,7 @@ function StartScreen({ onStartGame, wallet }) {
       gameModeScreen.classList.remove('fade-in');
       gameModeScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (gameModeScreen.parentNode) {
-          gameModeScreen.parentNode.removeChild(gameModeScreen);
-        }
+        gameModeScreen.remove();
         backToStart();
       }, 300);
     });
@@ -818,13 +842,13 @@ function StartScreen({ onStartGame, wallet }) {
   useEffect(() => {
     const startScreen = document.createElement('div');
     startScreen.id = 'start-screen';
-    startScreen.className = 'page-content';
     startScreen.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -849,8 +873,8 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 72px;
       font-weight: bold;
       color: #ffffff;
-      letter-spacing: 8px;
-      margin-bottom: 20px;
+      letterSpacing: 8px;
+      marginBottom: 20px;
     `;
     gameTitle.textContent = `ASTROWORM`;
     const subtitle = document.createElement('div');
@@ -858,7 +882,7 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.9;
-      letter-spacing: 2px;
+      letterSpacing: 2px;
     `;
     subtitle.textContent = `COSMIC SERPENT REALITY COIL`;
     titleContainer.appendChild(gameTitle);
@@ -1305,12 +1329,12 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
         {/* Add stars loop here, same as in ConnectWalletScreen */}
       </div>
-      <div style={{ fontSize: '32px', fontWeight: 'bold', letter-spacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
+      <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
       <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
         <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
       </div>
-      <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letter-spacing: '1px', zIndex: 2 }}>{progress}%</div>
+      <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px', zIndex: 2 }}>{progress}%</div>
     </div>
   ) : (
     <div>
