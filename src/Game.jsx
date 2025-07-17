@@ -12,7 +12,6 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 import { getAnalytics } from "firebase/analytics";
 import '@solana/wallet-adapter-react-ui/styles.css';
-
 import moonModel from './assets/makemake_an_artists_interpretation_f4892653.glb';
 import galaxy1 from './assets/inside_galaxy_skybox_hdri_360_panorama_dbec329b.glb';
 import galaxy2 from './assets/space_nebula_hdri_panorama_360_skydome_8bbd7364.glb';
@@ -67,11 +66,27 @@ function Game() {
         }
       });
       await sendClientTransactions(client, wallet, txResponse);
+
+      // Save profile to Firebase
+      const userId = wallet.publicKey.toString();
+      const userRef = ref(db, 'users/' + userId);
+      await set(userRef, {
+        profileIdentity: "main",
+        userInfo: {
+          name: "Astroworm Player",
+          bio: "Cosmic Serpent in the Reality Coil",
+          pfp: "https://example.com/default-pfp.png"
+        },
+        createdAt: new Date().toISOString(),
+        wallet: userId
+      });
+
       setIsProfileCreated(true);
       setIsInStartScreen(true);
-      console.log("User and profile created");
+      console.log("User and profile created and saved to Firebase");
     } catch (error) {
       console.error('Error creating user and profile:', error);
+      // Optionally handle error, e.g., show message, but for now, don't set states to proceed
     }
   }
 
@@ -157,7 +172,7 @@ function Game() {
       @media (max-width: 480px) {
         .game-title {
           font-size: 36px !important;
-          letterSpacing: 4px !important;
+          letter-spacing: 4px !important;
         }
         .menu-button {
           font-size: 14px !important;
@@ -267,7 +282,6 @@ function Background() {
       document.head.removeChild(starStyle);
     };
   }, []);
-
   return null;
 }
 
@@ -314,19 +328,19 @@ function ConnectWalletScreen({ setVisible }) {
       font-size: 72px;
       font-weight: bold;
       color: #ffffff;
-      letterSpacing: 8px;
-      marginBottom: 20px;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
     `;
-    gameTitle.textContent = `ASTROWORM`;
+    gameTitle.textContent = 'ASTROWORM';
     const subtitle = document.createElement('div');
     subtitle.style.cssText = `
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.9;
-      letterSpacing: 2px;
-      marginBottom: 40px;
+      letter-spacing: 2px;
+      margin-bottom: 40px;
     `;
-    subtitle.textContent = `Connect your wallet to enter the Reality Coil`;
+    subtitle.textContent = 'Connect your wallet to enter the Reality Coil';
     titleContainer.appendChild(gameTitle);
     titleContainer.appendChild(subtitle);
     const connectButton = document.createElement('button');
@@ -340,7 +354,7 @@ function ConnectWalletScreen({ setVisible }) {
       font-weight: bold;
       border-radius: 10px;
       cursor: pointer;
-      letterSpacing: 2px;
+      letter-spacing: 2px;
       transition: all 0.3s ease;
       min-width: 250px;
       z-index: 2;
@@ -373,7 +387,6 @@ function ConnectWalletScreen({ setVisible }) {
       connectButton.removeEventListener('touchend', handleLeave);
     };
   }, [setVisible]);
-
   return null;
 }
 
@@ -382,7 +395,7 @@ const achievements = {
     id: 'firstSteps',
     name: 'First Steps',
     description: 'Play your first game',
-    icon: '🌟',
+    icon: '',
     unlocked: false,
     condition: (gamesPlayed) => gamesPlayed >= 1
   },
@@ -390,7 +403,7 @@ const achievements = {
     id: 'scoreNovice',
     name: 'Cosmic Novice',
     description: 'Reach 250 points',
-    icon: '⭐',
+    icon: '',
     unlocked: false,
     condition: (highestScore) => highestScore >= 250
   },
@@ -398,7 +411,7 @@ const achievements = {
     id: 'scoreAdept',
     name: 'Reality Bender',
     description: 'Reach 1000 points',
-    icon: '🌠',
+    icon: '',
     unlocked: false,
     condition: (highestScore) => highestScore >= 1000
   },
@@ -406,7 +419,7 @@ const achievements = {
     id: 'scoreMaster',
     name: 'Coil Master',
     description: 'Reach 2500 points',
-    icon: '💫',
+    icon: '',
     unlocked: false,
     condition: (highestScore) => highestScore >= 2500
   },
@@ -414,7 +427,7 @@ const achievements = {
     id: 'lengthGrower',
     name: 'Growing Serpent',
     description: 'Reach 30 segments',
-    icon: '🐍',
+    icon: '',
     unlocked: false,
     condition: (longestSnake) => longestSnake >= 30
   },
@@ -422,7 +435,7 @@ const achievements = {
     id: 'lengthTitan',
     name: 'Cosmic Titan',
     description: 'Reach 75 segments',
-    icon: '🐉',
+    icon: '',
     unlocked: false,
     condition: (longestSnake) => longestSnake >= 75
   },
@@ -430,7 +443,7 @@ const achievements = {
     id: 'speedDemon',
     name: 'Speed Demon',
     description: 'Complete a timed game with 30+ seconds left',
-    icon: '⚡',
+    icon: '',
     unlocked: false,
     condition: (timeRemaining, score, gameMode) => gameMode === 'timed' && timeRemaining >= 30 && score >= 100
   },
@@ -438,7 +451,7 @@ const achievements = {
     id: 'survivor',
     name: 'Dimensional Survivor',
     description: 'Survive for 5 minutes in one game',
-    icon: '🛡️',
+    icon: '',
     unlocked: false,
     condition: (elapsedTime) => elapsedTime >= 300000 // 5 minutes in ms
   },
@@ -446,7 +459,7 @@ const achievements = {
     id: 'glutton',
     name: 'Cosmic Glutton',
     description: 'Eat 250 cosmic fragments total',
-    icon: '🍎',
+    icon: '',
     unlocked: false,
     condition: (spheresEaten) => spheresEaten >= 250
   },
@@ -454,7 +467,7 @@ const achievements = {
     id: 'collector',
     name: 'Fragment Collector',
     description: 'Eat 1000 cosmic fragments total',
-    icon: '💎',
+    icon: '',
     unlocked: false,
     condition: (spheresEaten) => spheresEaten >= 1000
   },
@@ -462,7 +475,7 @@ const achievements = {
     id: 'veteran',
     name: 'Coil Veteran',
     description: 'Play 25 games',
-    icon: '🏆',
+    icon: '',
     unlocked: false,
     condition: (gamesPlayed) => gamesPlayed >= 25
   },
@@ -470,7 +483,7 @@ const achievements = {
     id: 'timeAttacker',
     name: 'Time Attacker',
     description: 'Score 500+ in timed mode',
-    icon: '⏰',
+    icon: '',
     unlocked: false,
     condition: (bestTimedScore) => bestTimedScore >= 500
   },
@@ -478,7 +491,7 @@ const achievements = {
     id: 'perfectionist',
     name: 'Reality Perfectionist',
     description: 'Score 5000+ points',
-    icon: '🔥',
+    icon: '',
     unlocked: false,
     condition: (highestScore) => highestScore >= 5000
   },
@@ -486,7 +499,7 @@ const achievements = {
     id: 'leviathan',
     name: 'Cosmic Leviathan',
     description: 'Reach 150 segments',
-    icon: '🌌',
+    icon: '',
     unlocked: false,
     condition: (longestSnake) => longestSnake >= 150
   },
@@ -494,7 +507,7 @@ const achievements = {
     id: 'dedication',
     name: 'Dimensional Dedication',
     description: 'Play for 120 minutes total',
-    icon: '⌛',
+    icon: '',
     unlocked: false,
     condition: (totalPlayTime) => totalPlayTime >= 7200000 // 120 min in ms
   }
@@ -522,7 +535,7 @@ function StartScreen({ onStartGame, wallet }) {
       font-weight: bold;
       border-radius: 10px;
       cursor: pointer;
-      letterSpacing: 2px;
+      letter-spacing: 2px;
       transition: all 0.3s ease;
       min-width: 200px;
     `;
@@ -567,9 +580,9 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 48px;
       font-weight: bold;
       color: #4169e1;
-      letterSpacing: 4px;
-      marginBottom: 30px;
-      textAlign: center;
+      letter-spacing: 4px;
+      margin-bottom: 30px;
+      text-align: center;
     `;
     pageTitle.textContent = title;
     const comingSoonText = document.createElement('div');
@@ -577,10 +590,10 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 24px;
       color: #ffffff;
       opacity: 0.8;
-      marginBottom: 40px;
-      textAlign: center;
+      margin-bottom: 40px;
+      text-align: center;
     `;
-    comingSoonText.textContent = `Coming Soon to the Reality Coil`;
+    comingSoonText.textContent = 'Coming Soon to the Reality Coil';
     const backButton = createMenuButton('BACK TO MAIN MENU', () => {
       placeholderScreen.classList.remove('fade-in');
       placeholderScreen.classList.add('fade-out');
@@ -626,16 +639,16 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 48px;
       font-weight: bold;
       color: #4169e1;
-      letterSpacing: 4px;
-      marginBottom: 10px;
+      letter-spacing: 4px;
+      margin-bottom: 10px;
     `;
-    achievementsTitle.textContent = `ACHIEVEMENTS`;
+    achievementsTitle.textContent = 'ACHIEVEMENTS';
     const subtitle = document.createElement('div');
     subtitle.style.cssText = `
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.8;
-      marginBottom: 20px;
+      margin-bottom: 20px;
     `;
     const unlockedCount = Object.values(achievements).filter(a => a.unlocked).length;
     const totalCount = Object.keys(achievements).length;
@@ -662,7 +675,7 @@ function StartScreen({ onStartGame, wallet }) {
     progressText.style.cssText = `
       font-size: 14px;
       color: #00ffff;
-      marginBottom: 20px;
+      margin-bottom: 20px;
     `;
     progressText.textContent = `${Math.round(unlockedCount / totalCount * 100)}% Complete`;
     header.appendChild(achievementsTitle);
@@ -785,20 +798,20 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 48px;
       font-weight: bold;
       color: #4169e1;
-      letterSpacing: 4px;
-      marginBottom: 20px;
-      textAlign: center;
+      letter-spacing: 4px;
+      margin-bottom: 20px;
+      text-align: center;
     `;
-    gameModeTitle.textContent = `SELECT GAME MODE`;
+    gameModeTitle.textContent = 'SELECT GAME MODE';
     const subtitle = document.createElement('div');
     subtitle.style.cssText = `
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.8;
-      marginBottom: 40px;
-      textAlign: center;
+      margin-bottom: 40px;
+      text-align: center;
     `;
-    subtitle.textContent = `Choose your path through the Reality Coil`;
+    subtitle.textContent = 'Choose your path through the Reality Coil';
     const gameModeButtonContainer = document.createElement('div');
     gameModeButtonContainer.style.cssText = `
       display: flex;
@@ -873,18 +886,18 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: 72px;
       font-weight: bold;
       color: #ffffff;
-      letterSpacing: 8px;
-      marginBottom: 20px;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
     `;
-    gameTitle.textContent = `ASTROWORM`;
+    gameTitle.textContent = 'ASTROWORM';
     const subtitle = document.createElement('div');
     subtitle.style.cssText = `
       font-size: 18px;
       color: #b0b0b0;
       opacity: 0.9;
-      letterSpacing: 2px;
+      letter-spacing: 2px;
     `;
-    subtitle.textContent = `COSMIC SERPENT REALITY COIL`;
+    subtitle.textContent = 'COSMIC SERPENT REALITY COIL';
     titleContainer.appendChild(gameTitle);
     titleContainer.appendChild(subtitle);
     const buttonContainer = document.createElement('div');
@@ -970,10 +983,70 @@ function StartScreen({ onStartGame, wallet }) {
     buttonContainer.appendChild(settingsButton);
     startScreen.appendChild(titleContainer);
     startScreen.appendChild(buttonContainer);
+
+    // Add wallet address display with dropdown
+    let dropdown = null;
+    const shortenAddress = (addr) => addr.slice(0, 6) + '...' + addr.slice(-4);
+    const walletDisplay = document.createElement('div');
+    walletDisplay.style.cssText = `
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #00ffff;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      z-index: 3;
+    `;
+    walletDisplay.textContent = shortenAddress(wallet.publicKey.toString());
+    const createDropdown = () => {
+      dropdown = document.createElement('div');
+      dropdown.style.cssText = `
+        position: absolute;
+        top: 60px;
+        right: 20px;
+        background: #1a1a3a;
+        border: 2px solid #4169e1;
+        border-radius: 8px;
+        padding: 10px;
+        z-index: 4;
+      `;
+      const disconnectBtn = document.createElement('button');
+      disconnectBtn.textContent = 'Disconnect';
+      disconnectBtn.style.cssText = `
+        background: #ff4d4d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      `;
+      disconnectBtn.addEventListener('click', () => {
+        wallet.disconnect();
+        if (dropdown) dropdown.remove();
+        dropdown = null;
+      });
+      dropdown.appendChild(disconnectBtn);
+      startScreen.appendChild(dropdown);
+    };
+    walletDisplay.addEventListener('click', () => {
+      if (dropdown) {
+        dropdown.remove();
+        dropdown = null;
+      } else {
+        createDropdown();
+      }
+    });
+    startScreen.appendChild(walletDisplay);
+
     document.body.appendChild(startScreen);
 
     return () => {
       startScreen.remove();
+      if (dropdown) dropdown.remove();
     };
   }, []);
 
@@ -1051,6 +1124,42 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   const timerIntervalRef = useRef(null);
   const scoreIntervalRef = useRef(null);
   const timeIntervalRef = useRef(null);
+
+  async function loadAchievements(wallet, gameRef) {
+    const userId = wallet.publicKey.toString();
+    const statsRef = ref(db, 'users/' + userId + '/stats');
+    const snapshot = await get(statsRef);
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      gameRef.current.gamesPlayed = data.gamesPlayed || 0;
+      gameRef.current.highestScore = data.highestScore || 0;
+      gameRef.current.longestSnake = data.longestSnake || 0;
+      gameRef.current.spheresEaten = data.spheresEaten || 0;
+      gameRef.current.totalPlayTime = data.totalPlayTime || 0;
+      gameRef.current.bestTimedScore = data.bestTimedScore || 0;
+      Object.keys(achievements).forEach(key => {
+        achievements[key].unlocked = data.achievements?.[key] || false;
+      });
+    }
+  }
+
+  async function saveAchievements(wallet, gameRef) {
+    const userId = wallet.publicKey.toString();
+    const statsRef = ref(db, 'users/' + userId + '/stats');
+    const data = {
+      gamesPlayed: gameRef.current.gamesPlayed,
+      highestScore: gameRef.current.highestScore,
+      longestSnake: gameRef.current.longestSnake,
+      spheresEaten: gameRef.current.spheresEaten,
+      totalPlayTime: gameRef.current.totalPlayTime,
+      bestTimedScore: gameRef.current.bestTimedScore,
+      achievements: {}
+    };
+    Object.keys(achievements).forEach(key => {
+      data.achievements[key] = achievements[key].unlocked;
+    });
+    await set(statsRef, data);
+  }
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -1189,7 +1298,6 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
         setTimeRemaining(gameRef.current.timeRemaining);
       }, 1000);
     }
-
     return () => {
       cancelAnimationFrame(animationFrameId.current);
       window.removeEventListener('resize', handleResize);
@@ -1339,7 +1447,7 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   ) : (
     <div>
       <div className="score-text">Score: {score}</div>
-      {gameRef.current.gameMode === 'timed' && <div className="timer-text">{`Time: ${Math.floor(timeRemaining / 60)}:${timeRemaining % 60 < 10 ? '0' : ''}${timeRemaining % 60}`}</div>}
+      {gameRef.current.gameMode === 'timed' && <div className="timer-text">Time: {Math.floor(timeRemaining / 60)}:{timeRemaining % 60 < 10 ? '0' : ''}{timeRemaining % 60}</div>}
     </div>
   );
 }
