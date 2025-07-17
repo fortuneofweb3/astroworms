@@ -179,7 +179,6 @@ function Game() {
   }, []);
 
   const wallets = useMemo(() => [
-    new PhantomWalletAdapter(),
     new SolflareWalletAdapter(),
   ], []);
 
@@ -333,7 +332,10 @@ function ConnectWalletScreen({ setVisible }) {
     connectButton.addEventListener('mouseleave', handleLeave);
     connectButton.addEventListener('touchstart', handleEnter);
     connectButton.addEventListener('touchend', handleLeave);
-    connectButton.addEventListener('click', debounce(() => setVisible(true), 300));
+    connectButton.addEventListener('click', debounce(() => {
+      console.log('Connect button clicked - triggering modal');
+      setVisible(true);
+    }, 300));
     connectScreen.appendChild(titleContainer);
     connectScreen.appendChild(connectButton);
     document.body.appendChild(connectScreen);
