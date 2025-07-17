@@ -44,7 +44,7 @@ function Game() {
   const [isInGame, setIsInGame] = useState(false);
   const [gameMode, setGameMode] = useState(null);
   const wallet = useWallet();
-  const { setVisible } = useWalletModal();
+  const { setVisible, visible } = useWalletModal();
 
   useEffect(() => {
     if (wallet.connected) {
@@ -302,7 +302,7 @@ function ConnectWalletScreen({ setVisible }) {
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 9000;
+      z-index: 10000;
       font-family: monospace;
       color: white;
       overflow: hidden;
@@ -375,6 +375,10 @@ function ConnectWalletScreen({ setVisible }) {
     document.body.appendChild(connectScreen);
     return () => {
       document.body.removeChild(connectScreen);
+      connectButton.removeEventListener('mouseenter', handleEnter);
+      connectButton.removeEventListener('mouseleave', handleLeave);
+      connectButton.removeEventListener('touchstart', handleEnter);
+      connectButton.removeEventListener('touchend', handleLeave);
     };
   }, [setVisible]);
 
