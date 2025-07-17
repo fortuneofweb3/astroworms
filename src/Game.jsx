@@ -1034,4 +1034,3 @@ function GameCanvas({ mode }) {
 }
 
 export default Game;
-```
