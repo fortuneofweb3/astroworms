@@ -125,6 +125,15 @@ function Game() {
       .wallet-adapter-modal-overlay {
         z-index: 10000 !important;
       }
+      .wallet-adapter-modal-overlay ~ .page-content {
+        display: none !important;
+      }
+      .custom-popup {
+        z-index: 10001 !important;
+      }
+      .custom-popup ~ .page-content {
+        display: none !important;
+      }
       /* Mobile responsive styles */
       @media (max-width: 768px) {
         .game-title {
@@ -188,11 +197,86 @@ function Game() {
     <ConnectionProvider endpoint="https://api.devnet.solana.com">
       <WalletProvider wallets={wallets} autoConnect={true}>
         <WalletModalProvider>
+          <Background />
           {content}
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
+}
+
+function Background() {
+  useEffect(() => {
+    const background = document.createElement('div');
+    background.id = 'starry-background';
+    background.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
+      z-index: 0;
+      overflow: hidden;
+    `;
+    const starsContainer = document.createElement('div');
+    starsContainer.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    `;
+    for (let i = 0; i < 200; i++) {
+      const star = document.createElement('div');
+      const size = Math.random() * 3 + 1;
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const opacity = Math.random() * 0.8 + 0.2;
+      const animationDelay = Math.random() * 3;
+      const driftDuration = 20 + Math.random() * 40;
+      const driftDelay = Math.random() * 10;
+      const driftAnimation = Math.random() > 0.5 ? 'starDrift' : 'starDriftAlt';
+      star.style.cssText = `
+        position: absolute;
+        left: ${x}%;
+        top: ${y}%;
+        width: ${size}px;
+        height: ${size}px;
+        background: white;
+        border-radius: 50%;
+        opacity: ${opacity};
+        animation: twinkle 3s infinite ease-in-out, ${driftAnimation} ${driftDuration}s infinite linear;
+        animation-delay: ${animationDelay}s, ${driftDelay}s;
+      `;
+      starsContainer.appendChild(star);
+    }
+    background.appendChild(starsContainer);
+    const starStyle = document.createElement('style');
+    starStyle.textContent = `
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.3; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      @keyframes starDrift {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(-100vw, 50vh); }
+      }
+      @keyframes starDriftAlt {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(100vw, -30vh); }
+      }
+    `;
+    document.head.appendChild(starStyle);
+    document.body.appendChild(background);
+    return () => {
+      document.body.removeChild(background);
+      document.head.removeChild(starStyle);
+    };
+  }, []);
+
+  return null;
 }
 
 function ConnectWalletScreen({ setVisible }) {
@@ -207,6 +291,7 @@ function ConnectWalletScreen({ setVisible }) {
   useEffect(() => {
     const connectScreen = document.createElement('div');
     connectScreen.id = 'connect-screen';
+    connectScreen.className = 'page-content';
     connectScreen.style.cssText = `
       position: fixed;
       top: 0;
@@ -290,15 +375,134 @@ function ConnectWalletScreen({ setVisible }) {
     document.body.appendChild(connectScreen);
     return () => {
       document.body.removeChild(connectScreen);
-      connectButton.removeEventListener('mouseenter', handleEnter);
-      connectButton.removeEventListener('mouseleave', handleLeave);
-      connectButton.removeEventListener('touchstart', handleEnter);
-      connectButton.removeEventListener('touchend', handleLeave);
     };
   }, [setVisible]);
 
   return null;
 }
+
+const achievements = {
+  firstSteps: {
+    id: 'firstSteps',
+    name: 'First Steps',
+    description: 'Play your first game',
+    icon: '🌟',
+    unlocked: false,
+    condition: (gamesPlayed) => gamesPlayed >= 1
+  },
+  scoreNovice: {
+    id: 'scoreNovice',
+    name: 'Cosmic Novice',
+    description: 'Reach 250 points',
+    icon: '⭐',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 250
+  },
+  scoreAdept: {
+    id: 'scoreAdept',
+    name: 'Reality Bender',
+    description: 'Reach 1000 points',
+    icon: '🌠',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 1000
+  },
+  scoreMaster: {
+    id: 'scoreMaster',
+    name: 'Coil Master',
+    description: 'Reach 2500 points',
+    icon: '💫',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 2500
+  },
+  lengthGrower: {
+    id: 'lengthGrower',
+    name: 'Growing Serpent',
+    description: 'Reach 30 segments',
+    icon: '🐍',
+    unlocked: false,
+    condition: (longestSnake) => longestSnake >= 30
+  },
+  lengthTitan: {
+    id: 'lengthTitan',
+    name: 'Cosmic Titan',
+    description: 'Reach 75 segments',
+    icon: '🐉',
+    unlocked: false,
+    condition: (longestSnake) => longestSnake >= 75
+  },
+  speedDemon: {
+    id: 'speedDemon',
+    name: 'Speed Demon',
+    description: 'Complete a timed game with 30+ seconds left',
+    icon: '⚡',
+    unlocked: false,
+    condition: (timeRemaining, score, gameMode) => gameMode === 'timed' && timeRemaining >= 30 && score >= 100
+  },
+  survivor: {
+    id: 'survivor',
+    name: 'Dimensional Survivor',
+    description: 'Survive for 5 minutes in one game',
+    icon: '🛡️',
+    unlocked: false,
+    condition: (elapsedTime) => elapsedTime >= 300000 // 5 minutes in ms
+  },
+  glutton: {
+    id: 'glutton',
+    name: 'Cosmic Glutton',
+    description: 'Eat 250 cosmic fragments total',
+    icon: '🍎',
+    unlocked: false,
+    condition: (spheresEaten) => spheresEaten >= 250
+  },
+  collector: {
+    id: 'collector',
+    name: 'Fragment Collector',
+    description: 'Eat 1000 cosmic fragments total',
+    icon: '💎',
+    unlocked: false,
+    condition: (spheresEaten) => spheresEaten >= 1000
+  },
+  veteran: {
+    id: 'veteran',
+    name: 'Coil Veteran',
+    description: 'Play 25 games',
+    icon: '🏆',
+    unlocked: false,
+    condition: (gamesPlayed) => gamesPlayed >= 25
+  },
+  timeAttacker: {
+    id: 'timeAttacker',
+    name: 'Time Attacker',
+    description: 'Score 500+ in timed mode',
+    icon: '⏰',
+    unlocked: false,
+    condition: (bestTimedScore) => bestTimedScore >= 500
+  },
+  perfectionist: {
+    id: 'perfectionist',
+    name: 'Reality Perfectionist',
+    description: 'Score 5000+ points',
+    icon: '🔥',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 5000
+  },
+  leviathan: {
+    id: 'leviathan',
+    name: 'Cosmic Leviathan',
+    description: 'Reach 150 segments',
+    icon: '🌌',
+    unlocked: false,
+    condition: (longestSnake) => longestSnake >= 150
+  },
+  dedication: {
+    id: 'dedication',
+    name: 'Dimensional Dedication',
+    description: 'Play for 120 minutes total',
+    icon: '⌛',
+    unlocked: false,
+    condition: (totalPlayTime) => totalPlayTime >= 7200000 // 120 min in ms
+  }
+};
 
 function StartScreen({ onStartGame, wallet }) {
   const debounce = (func, delay) => {
@@ -345,6 +549,7 @@ function StartScreen({ onStartGame, wallet }) {
 
   function showPlaceholderPage(title, backToStart) {
     const placeholderScreen = document.createElement('div');
+    placeholderScreen.className = 'custom-popup';
     placeholderScreen.style.cssText = `
       position: fixed;
       top: 0;
@@ -394,6 +599,7 @@ function StartScreen({ onStartGame, wallet }) {
 
   function showAchievementsScreen(backToStart) {
     const achievementsScreen = document.createElement('div');
+    achievementsScreen.className = 'custom-popup';
     achievementsScreen.style.cssText = `
       position: fixed;
       top: 0;
@@ -561,6 +767,7 @@ function StartScreen({ onStartGame, wallet }) {
 
   function showGameModeScreen(backToStart) {
     const gameModeScreen = document.createElement('div');
+    gameModeScreen.className = 'custom-popup';
     gameModeScreen.style.cssText = `
       position: fixed;
       top: 0;
@@ -645,6 +852,7 @@ function StartScreen({ onStartGame, wallet }) {
   useEffect(() => {
     const startScreen = document.createElement('div');
     startScreen.id = 'start-screen';
+    startScreen.className = 'page-content';
     startScreen.style.cssText = `
       position: fixed;
       top: 0;
@@ -776,7 +984,6 @@ function StartScreen({ onStartGame, wallet }) {
 
     return () => {
       startScreen.remove();
-      document.head.removeChild(starStyle);
     };
   }, []);
 
