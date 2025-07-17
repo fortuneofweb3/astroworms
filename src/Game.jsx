@@ -302,7 +302,7 @@ function ConnectWalletScreen({ setVisible }) {
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 10000;
+      z-index: 9000;
       font-family: monospace;
       color: white;
       overflow: hidden;
