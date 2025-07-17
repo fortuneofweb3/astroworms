@@ -4,13 +4,14 @@ import { useEffect, useState, useRef } from 'react';
 import { useWallet } from "@solana/wallet-adapter-react";
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider, useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import createEdgeClient from "@honeycomb-protocol/edge-client";
 import { sendClientTransactions } from "@honeycomb-protocol/edge-client/client/walletHelpers";
 import { BadgesCondition } from '@honeycomb-protocol/edge-client';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 import { getAnalytics } from "firebase/analytics";
+import '@solana/wallet-adapter-react-ui/styles.css';
 
 import moonModel from './assets/makemake_an_artists_interpretation_f4892653.glb';
 import galaxy1 from './assets/inside_galaxy_skybox_hdri_360_panorama_dbec329b.glb';
@@ -177,13 +178,16 @@ function Game() {
     return () => document.head.removeChild(globalStyle);
   }, []);
 
-  const wallets = [new PhantomWalletAdapter()];
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ], []);
 
   const content = !wallet.connected || !isProfileCreated ? <ConnectWalletScreen setVisible={setVisible} /> : !isInGame && isInStartScreen ? <StartScreen onStartGame={startGame} wallet={wallet} /> : isInGame ? <GameCanvas mode={gameMode} wallet={wallet} setIsInGame={setIsInGame} setIsInStartScreen={setIsInStartScreen} /> : null;
 
   return (
-    <ConnectionProvider endpoint="https://api.mainnet-beta.solana.com">
-      <WalletProvider wallets={wallets} autoConnect>
+    <ConnectionProvider endpoint="https://api.devnet.solana.com">
+      <WalletProvider wallets={wallets} autoConnect={true}>
         <WalletModalProvider>
           {content}
         </WalletModalProvider>
@@ -339,7 +343,7 @@ function ConnectWalletScreen({ setVisible }) {
       connectButton.removeEventListener('mouseenter', handleEnter);
       connectButton.removeEventListener('mouseleave', handleLeave);
       connectButton.removeEventListener('touchstart', handleEnter);
-      connectButton.addEventListener('touchend', handleLeave);
+      connectButton.removeEventListener('touchend', handleLeave);
     };
   }, [setVisible]);
 
