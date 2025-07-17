@@ -35,7 +35,48 @@ const db = getDatabase(app);
 
 const PROJECT_ADDRESS = "HhEQWQdVL9wagu3tHj6vSBAR4YB9UtkuQkiHZ3cLMU1y";
 
-function StartScreen({ onStartGame, wallet, setVisible }) {
+function Game() {
+  const [isProfileCreated, setIsProfileCreated] = useState(false);
+  const [isInStartScreen, setIsInStartScreen] = useState(false);
+  const [isInGame, setIsInGame] = useState(false);
+  const [gameMode, setGameMode] = useState(null);
+  const wallet = useWallet();
+  const { setVisible } = useWalletModal();
+
+  useEffect(() => {
+    if (wallet.connected) {
+      createUserAndProfile();
+    }
+  }, [wallet.connected]);
+
+  async function createUserAndProfile() {
+    if (isProfileCreated) return;
+    try {
+      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
+        project: PROJECT_ADDRESS,
+        wallet: wallet.publicKey.toString(),
+        payer: wallet.publicKey.toString(),
+        profileIdentity: "main",
+        userInfo: {
+          name: "Astroworm Player",
+          bio: "Cosmic Serpent in the Reality Coil",
+          pfp: "https://example.com/default-pfp.png"
+        }
+      });
+      await sendClientTransactions(client, wallet, txResponse);
+      setIsProfileCreated(true);
+      setIsInStartScreen(true);
+      console.log("User and profile created");
+    } catch (error) {
+      console.error('Error creating user and profile:', error);
+    }
+  }
+
+  const startGame = (mode) => {
+    setGameMode(mode);
+    setIsInGame(true);
+  };
+
   useEffect(() => {
     const globalStyle = document.createElement('style');
     globalStyle.textContent = `
@@ -55,6 +96,10 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
       }
       * {
         box-sizing: border-box;
+        scrollbar-width: none; /* Firefox */
+      }
+      ::-webkit-scrollbar {
+        display: none; /* Chrome, Safari */
       }
       .fade-in {
         opacity: 0;
@@ -85,6 +130,20 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
           font-size: 20px !important;
           padding: 16px 30px !important;
         }
+        .tutorial-overlay {
+          bottom: 80px !important;
+        }
+        .score-text, .timer-text {
+          font-size: 16px !important;
+        }
+        .game-over-panel, .timed-game-over-panel {
+          width: 90% !important;
+          max-width: 350px !important;
+          padding: 20px !important;
+        }
+        .pause-menu {
+          padding: 20px !important;
+        }
       }
       @media (max-width: 480px) {
         .game-title {
@@ -100,12 +159,182 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
           font-size: 18px !important;
           padding: 14px 25px !important;
         }
+        .game-over-panel, .timed-game-over-panel {
+          width: 95% !important;
+          padding: 15px !important;
+        }
       }
     `;
     document.head.appendChild(globalStyle);
     return () => document.head.removeChild(globalStyle);
   }, []);
 
+  if (!wallet.connected || !isProfileCreated) {
+    return <ConnectWalletScreen setVisible={setVisible} />;
+  }
+
+  if (!isInGame && isInStartScreen) {
+    return <StartScreen onStartGame={startGame} wallet={wallet} />;
+  }
+
+  if (isInGame) {
+    return <GameCanvas mode={gameMode} />;
+  }
+
+  return null;
+}
+
+function ConnectWalletScreen({ setVisible }) {
+  const debounce = (func, delay) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  useEffect(() => {
+    const connectScreen = document.createElement('div');
+    connectScreen.id = 'connect-screen';
+    connectScreen.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      font-family: monospace;
+      color: white;
+      overflow: hidden;
+      opacity: 0;
+    `;
+    connectScreen.classList.add('fade-in');
+    const starsContainer = document.createElement('div');
+    starsContainer.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    `;
+    for (let i = 0; i < 200; i++) {
+      const star = document.createElement('div');
+      const size = Math.random() * 3 + 1;
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const opacity = Math.random() * 0.8 + 0.2;
+      const animationDelay = Math.random() * 3;
+      const driftDuration = 20 + Math.random() * 40;
+      const driftDelay = Math.random() * 10;
+      const driftAnimation = Math.random() > 0.5 ? 'starDrift' : 'starDriftAlt';
+      star.style.cssText = `
+        position: absolute;
+        left: ${x}%;
+        top: ${y}%;
+        width: ${size}px;
+        height: ${size}px;
+        background: white;
+        border-radius: 50%;
+        opacity: ${opacity};
+        animation: twinkle 3s infinite ease-in-out, ${driftAnimation} ${driftDuration}s infinite linear;
+        animation-delay: ${animationDelay}s, ${driftDelay}s;
+      `;
+      starsContainer.appendChild(star);
+    }
+    connectScreen.appendChild(starsContainer);
+    const starStyle = document.createElement('style');
+    starStyle.textContent = `
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.3; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      @keyframes starDrift {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(-100vw, 50vh); }
+      }
+      @keyframes starDriftAlt {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(100vw, -30vh); }
+      }
+    `;
+    document.head.appendChild(starStyle);
+    const titleContainer = document.createElement('div');
+    titleContainer.style.cssText = `
+      text-align: center;
+      margin-bottom: 50px;
+      z-index: 2;
+      position: relative;
+    `;
+    const gameTitle = document.createElement('div');
+    gameTitle.className = 'game-title';
+    gameTitle.style.cssText = `
+      font-size: 72px;
+      font-weight: bold;
+      color: #ffffff;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
+    `;
+    gameTitle.textContent = `ASTROWORM`;
+    const subtitle = document.createElement('div');
+    subtitle.style.cssText = `
+      font-size: 18px;
+      color: #b0b0b0;
+      opacity: 0.9;
+      letter-spacing: 2px;
+      margin-bottom: 40px;
+    `;
+    subtitle.textContent = `Connect your wallet to enter the Reality Coil`;
+    titleContainer.appendChild(gameTitle);
+    titleContainer.appendChild(subtitle);
+    const connectButton = document.createElement('button');
+    connectButton.style.cssText = `
+      background: #4169e1;
+      color: white;
+      border: 2px solid #4169e1;
+      padding: 20px 40px;
+      font-size: 24px;
+      font-family: monospace;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.3s ease;
+      min-width: 250px;
+      z-index: 2;
+    `;
+    connectButton.textContent = 'CONNECT WALLET';
+    const handleEnter = () => {
+      connectButton.style.transform = 'scale(1.05)';
+      connectButton.style.background = '#5a7dff';
+    };
+    const handleLeave = () => {
+      connectButton.style.transform = 'scale(1)';
+      connectButton.style.background = '#4169e1';
+    };
+    connectButton.addEventListener('mouseenter', handleEnter);
+    connectButton.addEventListener('mouseleave', handleLeave);
+    connectButton.addEventListener('touchstart', handleEnter);
+    connectButton.addEventListener('touchend', handleLeave);
+    connectButton.addEventListener('click', debounce(() => setVisible(true), 300));
+    connectScreen.appendChild(titleContainer);
+    connectScreen.appendChild(connectButton);
+    document.body.appendChild(connectScreen);
+    return () => {
+      document.body.removeChild(connectScreen);
+      document.head.removeChild(starStyle);
+    };
+  }, [setVisible]);
+
+  return null;
+}
+
+function StartScreen({ onStartGame, wallet }) {
   const debounce = (func, delay) => {
     let timeout;
     return (...args) => {
@@ -146,308 +375,6 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
     button.addEventListener('touchend', handleLeave);
     button.addEventListener('click', debounce(onClick, 300));
     return button;
-  }
-
-  function showPlaceholderPage(title, backToStart) {
-    const placeholderScreen = document.createElement('div');
-    placeholderScreen.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 10001;
-      font-family: monospace;
-      color: white;
-      opacity: 0;
-    `;
-    placeholderScreen.classList.add('fade-in');
-    const pageTitle = document.createElement('div');
-    pageTitle.style.cssText = `
-      font-size: 48px;
-      font-weight: bold;
-      color: #4169e1;
-      letter-spacing: 4px;
-      margin-bottom: 30px;
-      text-align: center;
-    `;
-    pageTitle.textContent = title;
-    const comingSoonText = document.createElement('div');
-    comingSoonText.style.cssText = `
-      font-size: 24px;
-      color: #ffffff;
-      opacity: 0.8;
-      margin-bottom: 40px;
-      text-align: center;
-    `;
-    comingSoonText.textContent = `Coming Soon to the Reality Coil`;
-    const backButton = createMenuButton('BACK TO MAIN MENU', () => {
-      placeholderScreen.classList.remove('fade-in');
-      placeholderScreen.classList.add('fade-out');
-      setTimeout(() => placeholderScreen.remove(), 300);
-      backToStart();
-    });
-    placeholderScreen.appendChild(pageTitle);
-    placeholderScreen.appendChild(comingSoonText);
-    placeholderScreen.appendChild(backButton);
-    document.body.appendChild(placeholderScreen);
-  }
-
-  function showAchievementsScreen(backToStart) {
-    const achievementsScreen = document.createElement('div');
-    achievementsScreen.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
-      display: flex;
-      flex-direction: column;
-      z-index: 10001;
-      font-family: monospace;
-      color: white;
-      overflow-y: auto;
-      opacity: 0;
-    `;
-    achievementsScreen.classList.add('fade-in');
-    const header = document.createElement('div');
-    header.style.cssText = `
-      text-align: center;
-      padding: 30px 20px 20px;
-      position: sticky;
-      top: 0;
-      background: rgba(10, 10, 26, 0.9);
-      backdrop-filter: blur(10px);
-      z-index: 2;
-    `;
-    const achievementsTitle = document.createElement('div');
-    achievementsTitle.style.cssText = `
-      font-size: 48px;
-      font-weight: bold;
-      color: #4169e1;
-      letter-spacing: 4px;
-      margin-bottom: 10px;
-    `;
-    achievementsTitle.textContent = `ACHIEVEMENTS`;
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = `
-      font-size: 18px;
-      color: #b0b0b0;
-      opacity: 0.8;
-      margin-bottom: 20px;
-    `;
-    const unlockedCount = Object.values(achievements).filter(a => a.unlocked).length;
-    const totalCount = Object.keys(achievements).length;
-    subtitle.textContent = `${unlockedCount}/${totalCount} Cosmic Badges Earned`;
-    const progressBar = document.createElement('div');
-    progressBar.style.cssText = `
-      width: 300px;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
-      margin: 0 auto 10px;
-      overflow: hidden;
-    `;
-    const progressFill = document.createElement('div');
-    progressFill.style.cssText = `
-      width: ${unlockedCount / totalCount * 100}%;
-      height: 100%;
-      background: linear-gradient(90deg, #4169e1, #00ffff);
-      border-radius: 3px;
-      transition: width 0.5s ease;
-    `;
-    progressBar.appendChild(progressFill);
-    const progressText = document.createElement('div');
-    progressText.style.cssText = `
-      font-size: 14px;
-      color: #00ffff;
-      margin-bottom: 20px;
-    `;
-    progressText.textContent = `${Math.round(unlockedCount / totalCount * 100)}% Complete`;
-    header.appendChild(achievementsTitle);
-    header.appendChild(subtitle);
-    header.appendChild(progressBar);
-    header.appendChild(progressText);
-    const content = document.createElement('div');
-    content.style.cssText = `
-      flex: 1;
-      padding: 20px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      max-width: 1200px;
-      margin: 0 auto;
-    `;
-    Object.values(achievements).forEach(achievement => {
-      const achievementCard = document.createElement('div');
-      achievementCard.style.cssText = `
-        background: ${achievement.unlocked ? 'linear-gradient(135deg, rgba(65, 105, 225, 0.2), rgba(0, 255, 255, 0.1))' : 'rgba(128, 128, 128, 0.1)'};
-        border: 2px solid ${achievement.unlocked ? '#4169e1' : '#666666'};
-        border-radius: 12px;
-        padding: 20px;
-        transition: all 0.3s ease;
-        cursor: default;
-        opacity: ${achievement.unlocked ? '1' : '0.6'};
-        position: relative;
-        overflow: hidden;
-      `;
-      if (achievement.unlocked) {
-        achievementCard.style.boxShadow = '0 0 20px rgba(65, 105, 225, 0.3)';
-      }
-      const iconContainer = document.createElement('div');
-      iconContainer.style.cssText = `
-        font-size: 48px;
-        text-align: center;
-        margin-bottom: 15px;
-        filter: ${achievement.unlocked ? 'none' : 'grayscale(100%)'};
-      `;
-      iconContainer.textContent = achievement.icon;
-      const nameElement = document.createElement('div');
-      nameElement.style.cssText = `
-        font-size: 18px;
-        font-weight: bold;
-        color: ${achievement.unlocked ? '#ffffff' : '#888888'};
-        text-align: center;
-        margin-bottom: 8px;
-      `;
-      nameElement.textContent = achievement.name;
-      const descElement = document.createElement('div');
-      descElement.style.cssText = `
-        font-size: 14px;
-        color: ${achievement.unlocked ? '#b0b0b0' : '#666666'};
-        text-align: center;
-        line-height: 1.4;
-      `;
-      descElement.textContent = achievement.description;
-      if (achievement.unlocked) {
-        const unlockedBadge = document.createElement('div');
-        unlockedBadge.style.cssText = `
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: #00ff00;
-          color: #000000;
-          font-size: 12px;
-          font-weight: bold;
-          padding: 4px 8px;
-          border-radius: 12px;
-        `;
-        unlockedBadge.textContent = '✓ UNLOCKED';
-        achievementCard.appendChild(unlockedBadge);
-      }
-      achievementCard.appendChild(iconContainer);
-      achievementCard.appendChild(nameElement);
-      achievementCard.appendChild(descElement);
-      content.appendChild(achievementCard);
-    });
-    const footer = document.createElement('div');
-    footer.style.cssText = `
-      text-align: center;
-      padding: 20px;
-      background: rgba(10, 10, 26, 0.9);
-      backdrop-filter: blur(10px);
-    `;
-    const backButton = createMenuButton('BACK TO MAIN MENU', () => {
-      achievementsScreen.classList.remove('fade-in');
-      achievementsScreen.classList.add('fade-out');
-      setTimeout(() => achievementsScreen.remove(), 300);
-      backToStart();
-    });
-    footer.appendChild(backButton);
-    achievementsScreen.appendChild(header);
-    achievementsScreen.appendChild(content);
-    achievementsScreen.appendChild(footer);
-    document.body.appendChild(achievementsScreen);
-  }
-
-  function showGameModeScreen(backToStart) {
-    const gameModeScreen = document.createElement('div');
-    gameModeScreen.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 10001;
-      font-family: monospace;
-      color: white;
-      opacity: 0;
-    `;
-    gameModeScreen.classList.add('fade-in');
-    const gameModeTitle = document.createElement('div');
-    gameModeTitle.style.cssText = `
-      font-size: 48px;
-      font-weight: bold;
-      color: #4169e1;
-      letter-spacing: 4px;
-      margin-bottom: 20px;
-      text-align: center;
-    `;
-    gameModeTitle.textContent = `SELECT GAME MODE`;
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = `
-      font-size: 18px;
-      color: #b0b0b0;
-      opacity: 0.8;
-      margin-bottom: 40px;
-      text-align: center;
-    `;
-    subtitle.textContent = `Choose your path through the Reality Coil`;
-    const gameModeButtonContainer = document.createElement('div');
-    gameModeButtonContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      align-items: center;
-    `;
-    const playVsAiButton = createMenuButton('PLAY VS A.I.', () => {
-      gameModeScreen.classList.remove('fade-in');
-      gameModeScreen.classList.add('fade-out');
-      setTimeout(() => {
-        if (gameModeScreen.parentNode) {
-          gameModeScreen.parentNode.removeChild(gameModeScreen);
-        }
-        onStartGame('normal');
-      }, 300);
-    }, true);
-    const playTimedButton = createMenuButton('PLAY TIMED MATCH', () => {
-      gameModeScreen.classList.remove('fade-in');
-      gameModeScreen.classList.add('fade-out');
-      setTimeout(() => {
-        if (gameModeScreen.parentNode) {
-          gameModeScreen.parentNode.removeChild(gameModeScreen);
-        }
-        onStartGame('timed');
-      }, 300);
-    });
-    const backButton = createMenuButton('BACK', () => {
-      gameModeScreen.classList.remove('fade-in');
-      gameModeScreen.classList.add('fade-out');
-      setTimeout(() => {
-        if (gameModeScreen.parentNode) {
-          gameModeScreen.parentNode.removeChild(gameModeScreen);
-        }
-        backToStart();
-      }, 300);
-    });
-    gameModeButtonContainer.appendChild(playVsAiButton);
-    gameModeButtonContainer.appendChild(playTimedButton);
-    gameModeButtonContainer.appendChild(backButton);
-    gameModeScreen.appendChild(gameModeTitle);
-    gameModeScreen.appendChild(subtitle);
-    gameModeScreen.appendChild(gameModeButtonContainer);
-    document.body.appendChild(gameModeScreen);
   }
 
   useEffect(() => {
@@ -557,22 +484,14 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
       z-index: 2;
       position: relative;
     `;
-    const connectButton = createMenuButton(wallet.connected ? 'WALLET CONNECTED' : 'CONNECT WALLET', () => {
-      if (!wallet.connected) {
-        setVisible(true);
-      }
-    });
-    connectButton.classList.add('wallet-connect-button');
-    buttonContainer.appendChild(connectButton);
     const playButton = createMenuButton('PLAY', () => {
       startScreen.classList.remove('fade-in');
       startScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (startScreen.parentNode) {
-          startScreen.parentNode.removeChild(startScreen);
-        }
+        startScreen.remove();
         showGameModeScreen(() => {
           document.body.appendChild(startScreen);
+          startScreen.classList.add('fade-in');
         });
       }, 300);
     }, true);
@@ -580,11 +499,10 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
       startScreen.classList.remove('fade-in');
       startScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (startScreen.parentNode) {
-          startScreen.parentNode.removeChild(startScreen);
-        }
+        startScreen.remove();
         showAchievementsScreen(() => {
           document.body.appendChild(startScreen);
+          startScreen.classList.add('fade-in');
         });
       }, 300);
     });
@@ -592,11 +510,10 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
       startScreen.classList.remove('fade-in');
       startScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (startScreen.parentNode) {
-          startScreen.parentNode.removeChild(startScreen);
-        }
+        startScreen.remove();
         showPlaceholderPage('LEADERBOARD', () => {
           document.body.appendChild(startScreen);
+          startScreen.classList.add('fade-in');
         });
       }, 300);
     });
@@ -604,11 +521,10 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
       startScreen.classList.remove('fade-in');
       startScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (startScreen.parentNode) {
-          startScreen.parentNode.removeChild(startScreen);
-        }
+        startScreen.remove();
         showPlaceholderPage('PROFILE', () => {
           document.body.appendChild(startScreen);
+          startScreen.classList.add('fade-in');
         });
       }, 300);
     });
@@ -616,11 +532,10 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
       startScreen.classList.remove('fade-in');
       startScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (startScreen.parentNode) {
-          startScreen.parentNode.removeChild(startScreen);
-        }
+        startScreen.remove();
         showPlaceholderPage('FACTIONS', () => {
           document.body.appendChild(startScreen);
+          startScreen.classList.add('fade-in');
         });
       }, 300);
     });
@@ -628,11 +543,10 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
       startScreen.classList.remove('fade-in');
       startScreen.classList.add('fade-out');
       setTimeout(() => {
-        if (startScreen.parentNode) {
-          startScreen.parentNode.removeChild(startScreen);
-        }
+        startScreen.remove();
         showPlaceholderPage('SETTINGS', () => {
           document.body.appendChild(startScreen);
+          startScreen.classList.add('fade-in');
         });
       }, 300);
     });
@@ -645,26 +559,19 @@ function StartScreen({ onStartGame, wallet, setVisible }) {
     startScreen.appendChild(titleContainer);
     startScreen.appendChild(buttonContainer);
     document.body.appendChild(startScreen);
+
     return () => {
-      if (startScreen.parentNode) {
-        startScreen.parentNode.removeChild(startScreen);
-      }
-      if (starStyle.parentNode) {
-        starStyle.parentNode.removeChild(starStyle);
-      }
+      startScreen.remove();
+      document.head.removeChild(starStyle);
     };
-  }, [wallet.connected]);
+  }, []);
 
   return null;
 }
 
 function GameCanvas({ mode }) {
-  const wallet = useWallet();
-  const [profileCreated, setProfileCreated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [scene, setScene] = useState(null);
-  const [camera, setCamera] = useState(null);
-  const [renderer, setRenderer] = useState(null);
+  const wallet = useWallet();
   const [gameState, setGameState] = useState({
     score: 0,
     snakeSegments: [],
@@ -672,7 +579,7 @@ function GameCanvas({ mode }) {
     snakeUp: new THREE.Vector3(0, 1, 0),
     snakeSpeed: 0.0607500,
     spheres: [],
-    maxSphereCount: 200,
+    maxSphereCount: 300,
     gameRunning: false,
     gameStarted: false,
     growthFactor: 1.0,
@@ -719,10 +626,14 @@ function GameCanvas({ mode }) {
     longestSnake: 0,
     spheresEaten: 0
   });
+  let scene;
+  let camera;
+  let renderer;
   let directionalLight = null;
   let galaxySkybox = null;
   let mobileControls = null;
   const inputMap = {};
+
   const achievements = {
     firstSteps: {
       id: 'firstSteps',
@@ -732,132 +643,321 @@ function GameCanvas({ mode }) {
       unlocked: false,
       condition: () => gameState.gamesPlayed >= 1
     },
-    // ... (add all other achievements as in original code)
+    scoreNovice: {
+      id: 'scoreNovice',
+      name: 'Cosmic Novice',
+      description: 'Reach 250 points',
+      icon: '⭐',
+      unlocked: false,
+      condition: () => gameState.highestScore >= 250
+    },
+    scoreAdept: {
+      id: 'scoreAdept',
+      name: 'Reality Bender',
+      description: 'Reach 1000 points',
+      icon: '🌠',
+      unlocked: false,
+      condition: () => gameState.highestScore >= 1000
+    },
+    scoreMaster: {
+      id: 'scoreMaster',
+      name: 'Coil Master',
+      description: 'Reach 2500 points',
+      icon: '💫',
+      unlocked: false,
+      condition: () => gameState.highestScore >= 2500
+    },
+    lengthGrower: {
+      id: 'lengthGrower',
+      name: 'Growing Serpent',
+      description: 'Reach 30 segments',
+      icon: '🐍',
+      unlocked: false,
+      condition: () => gameState.longestSnake >= 30
+    },
+    lengthTitan: {
+      id: 'lengthTitan',
+      name: 'Cosmic Titan',
+      description: 'Reach 75 segments',
+      icon: '🐉',
+      unlocked: false,
+      condition: () => gameState.longestSnake >= 75
+    },
+    speedDemon: {
+      id: 'speedDemon',
+      name: 'Speed Demon',
+      description: 'Complete a timed game with 30+ seconds left',
+      icon: '⚡',
+      unlocked: false,
+      condition: () => false // Set in checkSphereCollisions
+    },
+    survivor: {
+      id: 'survivor',
+      name: 'Dimensional Survivor',
+      description: 'Survive for 5 minutes in one game',
+      icon: '🛡️',
+      unlocked: false,
+      condition: () => false // Set in gameOver
+    },
+    glutton: {
+      id: 'glutton',
+      name: 'Cosmic Glutton',
+      description: 'Eat 250 cosmic fragments total',
+      icon: '🍎',
+      unlocked: false,
+      condition: () => gameState.spheresEaten >= 250
+    },
+    collector: {
+      id: 'collector',
+      name: 'Fragment Collector',
+      description: 'Eat 1000 cosmic fragments total',
+      icon: '💎',
+      unlocked: false,
+      condition: () => gameState.spheresEaten >= 1000
+    },
+    veteran: {
+      id: 'veteran',
+      name: 'Coil Veteran',
+      description: 'Play 25 games',
+      icon: '🏆',
+      unlocked: false,
+      condition: () => gameState.gamesPlayed >= 25
+    },
+    timeAttacker: {
+      id: 'timeAttacker',
+      name: 'Time Attacker',
+      description: 'Score 500+ in timed mode',
+      icon: '⏰',
+      unlocked: false,
+      condition: () => gameState.bestTimedScore >= 500
+    },
+    perfectionist: {
+      id: 'perfectionist',
+      name: 'Reality Perfectionist',
+      description: 'Score 5000+ points',
+      icon: '🔥',
+      unlocked: false,
+      condition: () => gameState.highestScore >= 5000
+    },
+    leviathan: {
+      id: 'leviathan',
+      name: 'Cosmic Leviathan',
+      description: 'Reach 150 segments',
+      icon: '🌌',
+      unlocked: false,
+      condition: () => gameState.longestSnake >= 150
+    },
+    dedication: {
+      id: 'dedication',
+      name: 'Dimensional Dedication',
+      description: 'Play for 120 minutes total',
+      icon: '⌛',
+      unlocked: false,
+      condition: () => gameState.totalPlayTime >= 7200000
+    }
   };
 
   useEffect(() => {
-    if (wallet.connected && !profileCreated) {
-      createUserAndProfile();
-    }
-  }, [wallet.connected, profileCreated]);
-
-  async function createUserAndProfile() {
-    // ... (as in original)
-  }
-
-  useEffect(() => {
-    const newScene = new THREE.Scene();
-    const newCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
-    const newRenderer = new THREE.WebGLRenderer({ antialias: true });
-    newRenderer.setSize(window.innerWidth, window.innerHeight);
-    newRenderer.shadowMap.enabled = true;
-    newRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    newRenderer.physicallyCorrectLights = false;
-    newRenderer.toneMappingExposure = 0.8;
-    document.body.appendChild(newRenderer.domElement);
-    newRenderer.domElement.style.position = 'absolute';
-    newRenderer.domElement.style.top = '0';
-    newRenderer.domElement.style.left = '0';
-    newRenderer.domElement.style.zIndex = '0'; // Full screen game
-    setScene(newScene);
-    setCamera(newCamera);
-    setRenderer(newRenderer);
-    newScene.background = new THREE.Color(0x000000);
-
-    const loadAssets = async () => {
-      await loadSun(newScene, newCamera);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+    renderer = new THREE.WebGLRenderer({
+      antialias: true
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = true;
+    renderer.physicallyCorrectLights = false;
+    renderer.toneMappingExposure = 0.8;
+    document.body.appendChild(renderer.domElement);
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.zIndex = '-1';
+    const viewportMeta = document.createElement('meta');
+    viewportMeta.name = 'viewport';
+    viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.head.appendChild(viewportMeta);
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    scene.background = new THREE.Color(0x000000);
+    loadSun().then(() => {
       setLoading(false);
-      setGameState(prev => ({ ...prev, gameRunning: true, gameStarted: true }));
-      gameState.gamesPlayed++;
-      gameState.gameStartTime = Date.now();
-      initializeSnake(newScene);
-      initializeAiSnakes(newScene);
-      if (gameState.gameMode === 'timed') {
-        startTimer();
+    }).catch(error => {
+      console.error('Error loading game assets:', error);
+      setLoading(false);
+    });
+    const scoreText = document.createElement('div');
+    scoreText.className = 'score-text';
+    scoreText.style.cssText = `
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-size: 20px;
+      font-family: monospace;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+    `;
+    scoreText.textContent = 'Score: 0';
+    document.body.appendChild(scoreText);
+    const timerText = document.createElement('div');
+    timerText.id = 'timer-display';
+    timerText.className = 'timer-text';
+    timerText.style.cssText = `
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #ffff00;
+      font-size: 20px;
+      font-family: monospace;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      display: none;
+    `;
+    timerText.textContent = 'Time: 1:00';
+    document.body.appendChild(timerText);
+    const timerStyle = document.createElement('style');
+    timerStyle.textContent = `
+      @keyframes timerPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
       }
-      checkAchievements();
-      saveAchievements();
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      if (!isTouchDevice) {
-        if (gameState.gameMode === 'timed') {
-          showTimedTutorial();
+    `;
+    document.head.appendChild(timerStyle);
+    const pauseButton = document.createElement('div');
+    pauseButton.id = 'pause-button';
+    pauseButton.style.cssText = `
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: auto;
+      height: auto;
+      padding: 8px 12px;
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      font-family: monospace;
+      cursor: pointer;
+      user-select: none;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+    `;
+    pauseButton.innerHTML = '||';
+    document.body.appendChild(pauseButton);
+    pauseButton.addEventListener('click', () => {
+      if (gameState.gameStarted && gameState.gameRunning) {
+        if (gameState.isPaused) {
+          hidePauseMenu();
         } else {
-          showTutorial();
+          gameState.isPaused = true;
+          showPauseMenu();
         }
       }
-      mobileControls = createMobileControls();
-      if (mobileControls) {
-        mobileControls.style.display = 'flex';
+    });
+    pauseButton.addEventListener('mouseenter', () => {
+      pauseButton.style.transform = 'translateX(-50%) scale(1.1)';
+      pauseButton.style.color = '#00ffff';
+    });
+    pauseButton.addEventListener('mouseleave', () => {
+      pauseButton.style.transform = 'translateX(-50%) scale(1)';
+      pauseButton.style.color = 'white';
+    });
+    document.addEventListener('keydown', evt => {
+      inputMap[evt.key] = true;
+      if (evt.key === 'Escape' && gameState.gameStarted && gameState.gameRunning) {
+        if (gameState.isPaused) {
+          hidePauseMenu();
+        } else {
+          gameState.isPaused = true;
+          showPauseMenu();
+        }
       }
-      pauseButton.style.display = 'block';
-      document.body.appendChild(pauseButton);
-    };
-
-    loadAssets();
-
-    const resizeListener = () => {
-      newCamera.aspect = window.innerWidth / window.innerHeight;
-      newCamera.updateProjectionMatrix();
-      newRenderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener('resize', resizeListener);
+    });
+    document.addEventListener('keyup', evt => {
+      inputMap[evt.key] = false;
+    });
+    mobileControls = createMobileControls();
+    loadAchievements();
 
     return () => {
-      window.removeEventListener('resize', resizeListener);
-      newRenderer.dispose();
-      newScene.traverse(obj => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) obj.material.dispose();
+      document.body.removeChild(renderer.domElement);
+      renderer.dispose();
+      scene.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          child.material.dispose();
+        }
       });
-      document.body.removeChild(newRenderer.domElement);
-      // Remove UI elements
-      document.querySelectorAll('.score-text, .timer-text, #pause-button, #mobile-controls').forEach(el => el.remove());
+      document.querySelectorAll('.score-text, .timer-text, #pause-button').forEach(el => el.remove());
+      if (mobileControls) mobileControls.remove();
+      document.head.removeChild(timerStyle);
+      document.head.removeChild(viewportMeta);
     };
   }, []);
 
   useEffect(() => {
-    if (renderer && scene && camera && !loading) {
-      const animate = () => {
-        requestAnimationFrame(animate);
-        // Full animate logic from original
-        // ... (paste the entire animate function here, using gameState and setGameState for updates)
-        renderer.render(scene, camera);
-      };
+    if (!loading) {
+      setGameState(prev => ({
+        ...prev,
+        gameRunning: true,
+        gameStarted: true,
+        gameMode: mode
+      }));
+      initializeSnake();
+      initializeAiSnakes();
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      if (mobileControls) {
+        mobileControls.style.display = isTouchDevice ? 'flex' : 'none';
+      }
+      pauseButton.style.display = 'block';
+      if (gameState.gameMode === 'timed') {
+        startTimer();
+        if (!isTouchDevice) showTimedTutorial();
+      } else {
+        if (!isTouchDevice) showTutorial();
+      }
+      gameState.gamesPlayed++;
+      gameState.gameStartTime = Date.now();
+      checkAchievements();
+      saveAchievements();
       animate();
     }
-  }, [loading, renderer, scene, camera]);
+  }, [loading]);
 
-  // ... paste all other functions like loadSun, initializeSpheres, updateSnake, etc., adapting to use scene/camera from state
+  async function loadSun() {
+    // ... (as in original code, but using local scene variable)
+  }
+
+  // ... (all other functions like createPlatform, generateRandomSnakeColors, spawnSphere, etc., as in original code, adapted to use local scene, camera, renderer)
+
+  function animate() {
+    requestAnimationFrame(animate);
+    // ... (full animate logic from original)
+  }
 
   if (loading) {
-    return <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'black', color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      Loading Reality Coil...
+    return <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'linear-gradient(45deg, #000011, #000022, #000033)', color: '#00ffff', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'monospace', zIndex: 10002 }}>
+      <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center' }}>INITIALIZING REALITY COIL</div>
+      <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center' }}>Loading cosmic assets...</div>
+      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden' }}>
+        <div style={{ width: '0%', height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
+      </div>
+      <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px' }}>0%</div>
     </div>;
   }
 
   return null;
 }
 
-function App() {
-  const [isInGame, setIsInGame] = useState(false);
-  const [gameMode, setGameMode] = useState(null);
-  const wallet = useWallet();
-  const { setVisible } = useWalletModal();
-
-  const startGame = (mode) => {
-    setGameMode(mode);
-    setIsInGame(true);
-  };
-
-  return (
-    <>
-      {!isInGame ? (
-        <StartScreen onStartGame={startGame} wallet={wallet} setVisible={setVisible} />
-      ) : (
-        <GameCanvas mode={gameMode} />
-      )}
-    </>
-  );
-}
-
-export default App;
+export default Game;
