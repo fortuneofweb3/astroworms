@@ -23,7 +23,7 @@ const API_URL = "https://edge.test.honeycombprotocol.com/";
 const client = createEdgeClient(API_URL, true);
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBryYJ_BEXB9zuJCRnO1U5RdDbj1T5piAuKc",
+  apiKey: "AIzaSyBryYJ_BEXB9zuJCRnO1RdDbj1T5piAuKc",
   authDomain: "astroworld-ac31d.firebaseapp.com",
   databaseURL: "https://astroworld-ac31d-default-rtdb.firebaseio.com",
   projectId: "astroworld-ac31d",
@@ -40,7 +40,7 @@ const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
 const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
 
 function Game() {
-  const [isProfileCreated, setIsProfileCreated] = useState(false);
+  const [isProfileCreated, setIsProfileCreated] = useState(localStorage.getItem('isProfileCreated') === 'true');
   const [isInStartScreen, setIsInStartScreen] = useState(false);
   const [isInGame, setIsInGame] = useState(false);
   const [gameMode, setGameMode] = useState(null);
@@ -56,6 +56,19 @@ function Game() {
   async function createUserAndProfile() {
     if (isProfileCreated) return;
     try {
+      // Check if user already exists
+      const users = await client.findUsers({
+        wallets: [wallet.publicKey.toString()]
+      }).then(({ user }) => user);
+
+      if (users.length > 0) {
+        console.log("User already exists, skipping creation.");
+        localStorage.setItem('isProfileCreated', 'true');
+        setIsProfileCreated(true);
+        setIsInStartScreen(true);
+        return;
+      }
+
       // Authenticate user to get access token
       const { authRequest: { message: authRequest } } = await client.authRequest({
         wallet: wallet.publicKey.toString()
@@ -103,12 +116,13 @@ function Game() {
         wallet: userId
       });
 
+      localStorage.setItem('isProfileCreated', 'true');
       setIsProfileCreated(true);
       setIsInStartScreen(true);
       console.log("User and profile created and saved to Firebase");
     } catch (error) {
       console.error('Error creating user and profile:', error);
-      if (error.response) console.error('API response:', error.response.data);
+      // Optionally handle error, e.g., show message, but for now, don't set states to proceed
     }
   }
 
@@ -870,7 +884,7 @@ function StartScreen({ onStartGame, wallet }) {
     gameModeButtonContainer.appendChild(backButton);
     gameModeScreen.appendChild(gameModeTitle);
     gameModeScreen.appendChild(subtitle);
-    gameModeScreen.appendChild(gameModeButtonContainer);
+    gameModeButtonContainer.appendChild(gameModeButtonContainer);
     document.body.appendChild(gameModeScreen);
   }
 
@@ -1461,8 +1475,8 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       </div>
       <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
-      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
-        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
+      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', border-radius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
+        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', border-radius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
       </div>
       <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px', zIndex: 2 }}>{progress}%</div>
     </div>
