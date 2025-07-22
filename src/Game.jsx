@@ -7,6 +7,7 @@ import { WalletModalProvider, useWalletModal } from '@solana/wallet-adapter-reac
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import createEdgeClient from "@honeycomb-protocol/edge-client";
 import { sendClientTransactions } from "@honeycomb-protocol/edge-client/client/walletHelpers";
+import { BadgesCondition } from '@honeycomb-protocol/edge-client';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 import { getAnalytics } from "firebase/analytics";
@@ -58,34 +59,82 @@ async function createPlatform(gameRef, scene, loader) {
 
 function initializeSnake(gameRef, scene) {
   console.log('Placeholder: initializeSnake not implemented');
+  // Example implementation
+  const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+  const headMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const head = new THREE.Mesh(headGeometry, headMaterial);
+  head.position.set(0, 0.5, 0);
+  head.castShadow = true;
+  gameRef.current.snakeSegments = [head];
+  scene.add(head);
 }
 
 function initializeAiSnakes(gameRef, scene) {
   console.log('Placeholder: initializeAiSnakes not implemented');
+  // Example implementation
+  gameRef.current.aiSnakes = [];
 }
 
 function initializeSpheres(gameRef, scene) {
   console.log('Placeholder: initializeSpheres not implemented');
+  // Example implementation
+  const sphereGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+  const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  gameRef.current.spheres = [];
+  for (let i = 0; i < gameRef.current.maxSphereCount; i++) {
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial.clone());
+    sphere.position.set(
+      (Math.random() - 0.5) * gameRef.current.platform.radius * 2,
+      0,
+      (Math.random() - 0.5) * gameRef.current.platform.radius * 2
+    );
+    sphere.castShadow = true;
+    sphere.receiveShadow = true;
+    if (Math.random() < 0.1) {
+      sphere.userData.type = 'powerUp';
+      sphere.material.color.set(0xff0000);
+    } else {
+      sphere.userData.type = 'fragment';
+    }
+    gameRef.current.spheres.push(sphere);
+    scene.add(sphere);
+  }
 }
 
 function showTimedTutorial() {
   console.log('Placeholder: showTimedTutorial not implemented');
+  // Example: Show a simple alert
+  alert('Timed Mode Tutorial: Score as much as possible in 60 seconds!');
 }
 
 function showTutorial() {
   console.log('Placeholder: showTutorial not implemented');
+  // Example: Show a simple alert
+  alert('Normal Mode Tutorial: Survive and eat fragments to grow!');
 }
 
 function checkAchievements(gameRef) {
   console.log('Placeholder: checkAchievements not implemented');
+  // Example: Check first achievement
+  if (gameRef.current.gamesPlayed >= 1) {
+    achievements.firstSteps.unlocked = true;
+  }
 }
 
 function animate(gameRef, sceneRef, cameraRef, rendererRef, inputMapRef, directionalLightRef, galaxySkyboxRef, animationFrameId, wallet, setIsInGame, setIsInStartScreen) {
   console.log('Placeholder: animate not implemented');
+  // Example basic animation loop
+  function loop() {
+    animationFrameId.current = requestAnimationFrame(loop);
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+  }
+  loop();
 }
 
 function showPauseMenu() {
   console.log('Placeholder: showPauseMenu not implemented');
+  // Example: Show a simple pause alert
+  alert('Game Paused');
 }
 
 function hidePauseMenu() {
@@ -94,6 +143,13 @@ function hidePauseMenu() {
 
 function startTimer(gameRef, timerIntervalRef) {
   console.log('Placeholder: startTimer not implemented');
+  // Example: Simple timer
+  timerIntervalRef.current = setInterval(() => {
+    gameRef.current.timeRemaining -= 1;
+    if (gameRef.current.timeRemaining <= 0) {
+      clearInterval(timerIntervalRef.current);
+    }
+  }, 1000);
 }
 
 function Game() {
@@ -108,7 +164,6 @@ function Game() {
     if (wallet.connected) {
       createUserAndProfile();
     } else if (localStorage.getItem('isProfileCreated') === 'true') {
-      // Auto-connect if profile exists
       setVisible(true);
     }
   }, [wallet.connected]);
@@ -116,7 +171,6 @@ function Game() {
   async function createUserAndProfile() {
     if (isProfileCreated) return;
     try {
-      // Check if user already exists
       const users = await client.findUsers({
         wallets: [wallet.publicKey.toString()]
       }).then(({ user }) => user);
@@ -129,7 +183,18 @@ function Game() {
         return;
       }
 
-      // Authenticate user to get access token
+      const { createNewUserTransaction: txResponse } = await client.createNewUserTransaction({
+        wallet: wallet.publicKey.toString(),
+        payer: wallet.publicKey.toString(),
+        info: {
+          name: "Astroworm Player",
+          pfp: "https://example.com/default-pfp.png",
+          bio: "Cosmic Serpent in the Reality Coil"
+        }
+      });
+      await sendClientTransactions(client, wallet, txResponse);
+
+      // Authenticate the new user
       const { authRequest: { message: authRequest } } = await client.authRequest({
         wallet: wallet.publicKey.toString()
       });
@@ -142,13 +207,12 @@ function Game() {
       });
       const accessToken = authConfirm.accessToken;
 
-      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
+      // Create profile with auth
+      const { createNewProfileTransaction: profileTxResponse } = await client.createNewProfileTransaction({
         project: PROJECT_ADDRESS,
-        wallet: wallet.publicKey.toString(),
         payer: wallet.publicKey.toString(),
-        profileIdentity: "main",
-        merkleTree: TREE_ADDRESS,
-        userInfo: {
+        identity: "main",
+        info: {
           name: "Astroworm Player",
           bio: "Cosmic Serpent in the Reality Coil",
           pfp: "https://example.com/default-pfp.png"
@@ -160,9 +224,9 @@ function Game() {
           }
         }
       });
-      await sendClientTransactions(client, wallet, txResponse);
+      await sendClientTransactions(client, wallet, profileTxResponse);
 
-      // Save profile to Firebase
+      // Save to Firebase
       const userId = wallet.publicKey.toString();
       const userRef = ref(db, 'users/' + userId);
       await set(userRef, {
@@ -348,7 +412,7 @@ function Background() {
         width: ${size}px;
         height: ${size}px;
         background: white;
-        border-radius: 50%;
+        borderRadius: 50%;
         opacity: ${opacity};
         animation: twinkle 3s infinite ease-in-out, ${driftAnimation} ${driftDuration}s infinite linear;
         animation-delay: ${animationDelay}s, ${driftDelay}s;
@@ -448,7 +512,7 @@ function ConnectWalletScreen({ setVisible }) {
       font-size: 24px;
       font-family: monospace;
       font-weight: bold;
-      border-radius: 10px;
+      borderRadius: 10px;
       cursor: pointer;
       letter-spacing: 2px;
       transition: all 0.3s ease;
@@ -1097,7 +1161,7 @@ function StartScreen({ onStartGame, wallet }) {
       borderRadius: 8px;
       z-index: 3;
     `;
-    walletDisplay.textContent = wallet.publicKey ? shortenAddress(wallet.publicKey.toString()) : 'No Wallet';
+    walletDisplay.textContent = shortenAddress(wallet.publicKey.toString());
     const createDropdown = () => {
       dropdown = document.createElement('div');
       dropdown.style.cssText = `
@@ -1122,9 +1186,6 @@ function StartScreen({ onStartGame, wallet }) {
       `;
       disconnectBtn.addEventListener('click', () => {
         wallet.disconnect();
-        localStorage.removeItem('isProfileCreated');
-        setIsProfileCreated(false);
-        setIsInStartScreen(false);
         if (dropdown) dropdown.remove();
         dropdown = null;
       });
@@ -1135,10 +1196,8 @@ function StartScreen({ onStartGame, wallet }) {
       if (dropdown) {
         dropdown.remove();
         dropdown = null;
-      } else if (wallet.publicKey) {
-        createDropdown();
       } else {
-        setVisible(true);
+        createDropdown();
       }
     });
     startScreen.appendChild(walletDisplay);
@@ -1149,7 +1208,7 @@ function StartScreen({ onStartGame, wallet }) {
       startScreen.remove();
       if (dropdown) dropdown.remove();
     };
-  }, [wallet.publicKey]);
+  }, []);
 
   return null;
 }
@@ -1260,7 +1319,6 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       data.achievements[key] = achievements[key].unlocked;
     });
     await set(statsRef, data);
-    // Add badge claiming logic here once gameplay is restored
   }
 
   useEffect(() => {
@@ -1271,12 +1329,10 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
     renderer.physicallyCorrectLights = false;
     renderer.toneMappingExposure = 0.8;
     document.body.appendChild(renderer.domElement);
-    renderer.domElement.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: -1;
-    `;
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.zIndex = '-1';
     const viewportMeta = document.createElement('meta');
     viewportMeta.name = 'viewport';
     viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
@@ -1405,27 +1461,20 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
     return () => {
       cancelAnimationFrame(animationFrameId.current);
       window.removeEventListener('resize', handleResize);
-      rendererRef.current.dispose();
+      renderer.dispose();
       sceneRef.current.traverse(child => {
         if (child instanceof THREE.Mesh) {
           child.geometry.dispose();
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(mat => mat.dispose());
-            } else {
-              child.material.dispose();
-            }
-          }
+          child.material.dispose();
         }
       });
-      document.body.removeChild(rendererRef.current.domElement);
+      document.body.removeChild(renderer.domElement);
       document.querySelectorAll('.score-text, .timer-text, #pause-button').forEach(el => el.remove());
       if (mobileControlsRef.current) mobileControlsRef.current.remove();
       document.head.removeChild(timerStyle);
       document.head.removeChild(viewportMeta);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
-     Hannah: 1;
       pauseButton.removeEventListener('click', handlePauseClick);
       if (scoreIntervalRef.current) clearInterval(scoreIntervalRef.current);
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
