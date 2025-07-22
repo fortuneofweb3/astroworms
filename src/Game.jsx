@@ -11,6 +11,7 @@ import { BadgesCondition } from '@honeycomb-protocol/edge-client';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 import { getAnalytics } from "firebase/analytics";
+import base58 from "bs58";
 import '@solana/wallet-adapter-react-ui/styles.css';
 import moonModel from './assets/makemake_an_artists_interpretation_f4892653.glb';
 import galaxy1 from './assets/inside_galaxy_skybox_hdri_360_panorama_dbec329b.glb';
@@ -51,45 +52,65 @@ function Game() {
     }
   }, [wallet.connected]);
 
-async function createUserAndProfile() {
-  if (isProfileCreated) return;
-  try {
-    const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
-      project: PROJECT_ADDRESS,
-      wallet: wallet.publicKey.toString(),
-      payer: wallet.publicKey.toString(),
-      profileIdentity: "main",
-      merkleTree: "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh", // Add this line for the profiles tree
-      userInfo: {
-        name: "Astroworm Player",
-        bio: "Cosmic Serpent in the Reality Coil",
-        pfp: "https://example.com/default-pfp.png"
-      }
-    });
-    await sendClientTransactions(client, wallet, txResponse);
+  async function createUserAndProfile() {
+    if (isProfileCreated) return;
+    try {
+      // Authenticate user to get access token
+      const { authRequest: { message: authRequest } } = await client.authRequest({
+        wallet: wallet.publicKey.toString()
+      });
+      const encodedMessage = new TextEncoder().encode(authRequest);
+      const signedUIntArray = await wallet.signMessage(encodedMessage);
+      const signature = base58.encode(signedUIntArray);
+      const { authConfirm } = await client.authConfirm({
+        wallet: wallet.publicKey.toString(),
+        signature
+      });
+      const accessToken = authConfirm.accessToken;
 
-    // Save profile to Firebase
-    const userId = wallet.publicKey.toString();
-    const userRef = ref(db, 'users/' + userId);
-    await set(userRef, {
-      profileIdentity: "main",
-      userInfo: {
-        name: "Astroworm Player",
-        bio: "Cosmic Serpent in the Reality Coil",
-        pfp: "https://example.com/default-pfp.png"
-      },
-      createdAt: new Date().toISOString(),
-      wallet: userId
-    });
+      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
+        project: PROJECT_ADDRESS,
+        wallet: wallet.publicKey.toString(),
+        payer: wallet.publicKey.toString(),
+        profileIdentity: "main",
+        merkleTree: "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh",
+        userInfo: {
+          name: "Astroworm Player",
+          bio: "Cosmic Serpent in the Reality Coil",
+          pfp: "https://example.com/default-pfp.png"
+        }
+      }, {
+        fetchOptions: {
+          headers: {
+            authorization: `Bearer ${accessToken}`
+          }
+        }
+      });
+      await sendClientTransactions(client, wallet, txResponse);
 
-    setIsProfileCreated(true);
-    setIsInStartScreen(true);
-    console.log("User and profile created and saved to Firebase");
-  } catch (error) {
-    console.error('Error creating user and profile:', error);
-    // Optionally handle error, e.g., show message, but for now, don't set states to proceed
+      // Save profile to Firebase
+      const userId = wallet.publicKey.toString();
+      const userRef = ref(db, 'users/' + userId);
+      await set(userRef, {
+        profileIdentity: "main",
+        userInfo: {
+          name: "Astroworm Player",
+          bio: "Cosmic Serpent in the Reality Coil",
+          pfp: "https://example.com/default-pfp.png"
+        },
+        createdAt: new Date().toISOString(),
+        wallet: userId
+      });
+
+      setIsProfileCreated(true);
+      setIsInStartScreen(true);
+      console.log("User and profile created and saved to Firebase");
+    } catch (error) {
+      console.error('Error creating user and profile:', error);
+      if (error.response) console.error('API response:', error.response.data);
+    }
   }
-}
+
   const startGame = (mode) => {
     setGameMode(mode);
     setIsInGame(true);
@@ -201,7 +222,7 @@ async function createUserAndProfile() {
   const content = !wallet.connected || !isProfileCreated ? <ConnectWalletScreen setVisible={setVisible} /> : !isInGame && isInStartScreen ? <StartScreen onStartGame={startGame} wallet={wallet} /> : isInGame ? <GameCanvas mode={gameMode} wallet={wallet} setIsInGame={setIsInGame} setIsInStartScreen={setIsInStartScreen} /> : null;
 
   return (
-    <ConnectionProvider endpoint="https://api.devnet.solana.com">
+    <ConnectionProvider endpoint="https://rpc.test.honeycombprotocol.com">
       <WalletProvider wallets={wallets} autoConnect={true}>
         <WalletModalProvider>
           <Background />
@@ -1439,8 +1460,8 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       </div>
       <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
-      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
-        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
+      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', border-radius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
+        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', border-radius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
       </div>
       <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px', zIndex: 2 }}>{progress}%</div>
     </div>
