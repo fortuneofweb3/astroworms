@@ -7,7 +7,6 @@ import { WalletModalProvider, useWalletModal } from '@solana/wallet-adapter-reac
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import createEdgeClient from "@honeycomb-protocol/edge-client";
 import { sendClientTransactions } from "@honeycomb-protocol/edge-client/client/walletHelpers";
-import { BadgesCondition } from '@honeycomb-protocol/edge-client';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 import { getAnalytics } from "firebase/analytics";
@@ -39,6 +38,64 @@ const db = getDatabase(app);
 const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
 const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
 
+// Placeholder functions (replace with actual implementations)
+function createMobileControls(inputMapRef) {
+  console.log('Placeholder: createMobileControls not implemented');
+  return { style: { display: 'none' }, remove: () => {} };
+}
+
+async function createPlatform(gameRef, scene, loader) {
+  console.log('Placeholder: createPlatform not implemented');
+  const geometry = new THREE.CircleGeometry(gameRef.current.platform.radius, 64);
+  const material = new THREE.MeshStandardMaterial({ color: 0x333333 });
+  const platform = new THREE.Mesh(geometry, material);
+  platform.position.set(0, -0.1, 0);
+  platform.rotation.x = -Math.PI / 2;
+  platform.receiveShadow = true;
+  gameRef.current.platform.mesh = platform;
+  scene.add(platform);
+}
+
+function initializeSnake(gameRef, scene) {
+  console.log('Placeholder: initializeSnake not implemented');
+}
+
+function initializeAiSnakes(gameRef, scene) {
+  console.log('Placeholder: initializeAiSnakes not implemented');
+}
+
+function initializeSpheres(gameRef, scene) {
+  console.log('Placeholder: initializeSpheres not implemented');
+}
+
+function showTimedTutorial() {
+  console.log('Placeholder: showTimedTutorial not implemented');
+}
+
+function showTutorial() {
+  console.log('Placeholder: showTutorial not implemented');
+}
+
+function checkAchievements(gameRef) {
+  console.log('Placeholder: checkAchievements not implemented');
+}
+
+function animate(gameRef, sceneRef, cameraRef, rendererRef, inputMapRef, directionalLightRef, galaxySkyboxRef, animationFrameId, wallet, setIsInGame, setIsInStartScreen) {
+  console.log('Placeholder: animate not implemented');
+}
+
+function showPauseMenu() {
+  console.log('Placeholder: showPauseMenu not implemented');
+}
+
+function hidePauseMenu() {
+  console.log('Placeholder: hidePauseMenu not implemented');
+}
+
+function startTimer(gameRef, timerIntervalRef) {
+  console.log('Placeholder: startTimer not implemented');
+}
+
 function Game() {
   const [isProfileCreated, setIsProfileCreated] = useState(localStorage.getItem('isProfileCreated') === 'true');
   const [isInStartScreen, setIsInStartScreen] = useState(false);
@@ -50,6 +107,9 @@ function Game() {
   useEffect(() => {
     if (wallet.connected) {
       createUserAndProfile();
+    } else if (localStorage.getItem('isProfileCreated') === 'true') {
+      // Auto-connect if profile exists
+      setVisible(true);
     }
   }, [wallet.connected]);
 
@@ -122,7 +182,7 @@ function Game() {
       console.log("User and profile created and saved to Firebase");
     } catch (error) {
       console.error('Error creating user and profile:', error);
-      // Optionally handle error, e.g., show message, but for now, don't set states to proceed
+      if (error.response) console.error('API response:', error.response.data);
     }
   }
 
@@ -569,7 +629,7 @@ function StartScreen({ onStartGame, wallet }) {
       font-size: ${isPrimary ? '24px' : '18px'};
       font-family: monospace;
       font-weight: bold;
-      border-radius: 10px;
+      borderRadius: 10px;
       cursor: pointer;
       letter-spacing: 2px;
       transition: all 0.3s ease;
@@ -694,7 +754,7 @@ function StartScreen({ onStartGame, wallet }) {
       width: 300px;
       height: 6px;
       background: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
+      borderRadius: 3px;
       margin: 0 auto 10px;
       overflow: hidden;
     `;
@@ -703,7 +763,7 @@ function StartScreen({ onStartGame, wallet }) {
       width: ${unlockedCount / totalCount * 100}%;
       height: 100%;
       background: linear-gradient(90deg, #4169e1, #00ffff);
-      border-radius: 3px;
+      borderRadius: 3px;
       transition: width 0.5s ease;
     `;
     progressBar.appendChild(progressFill);
@@ -733,7 +793,7 @@ function StartScreen({ onStartGame, wallet }) {
       achievementCard.style.cssText = `
         background: ${achievement.unlocked ? 'linear-gradient(135deg, rgba(65, 105, 225, 0.2), rgba(0, 255, 255, 0.1))' : 'rgba(128, 128, 128, 0.1)'};
         border: 2px solid ${achievement.unlocked ? '#4169e1' : '#666666'};
-        border-radius: 12px;
+        borderRadius: 12px;
         padding: 20px;
         transition: all 0.3s ease;
         cursor: default;
@@ -780,7 +840,7 @@ function StartScreen({ onStartGame, wallet }) {
           font-size: 12px;
           font-weight: bold;
           padding: 4px 8px;
-          border-radius: 12px;
+          borderRadius: 12px;
         `;
         unlockedBadge.textContent = '✓ UNLOCKED';
         achievementCard.appendChild(unlockedBadge);
@@ -884,7 +944,7 @@ function StartScreen({ onStartGame, wallet }) {
     gameModeButtonContainer.appendChild(backButton);
     gameModeScreen.appendChild(gameModeTitle);
     gameModeScreen.appendChild(subtitle);
-    gameModeButtonContainer.appendChild(gameModeButtonContainer);
+    gameModeScreen.appendChild(gameModeButtonContainer);
     document.body.appendChild(gameModeScreen);
   }
 
@@ -1034,10 +1094,10 @@ function StartScreen({ onStartGame, wallet }) {
       cursor: pointer;
       padding: 8px 16px;
       background: rgba(0, 0, 0, 0.5);
-      border-radius: 8px;
+      borderRadius: 8px;
       z-index: 3;
     `;
-    walletDisplay.textContent = shortenAddress(wallet.publicKey.toString());
+    walletDisplay.textContent = wallet.publicKey ? shortenAddress(wallet.publicKey.toString()) : 'No Wallet';
     const createDropdown = () => {
       dropdown = document.createElement('div');
       dropdown.style.cssText = `
@@ -1046,7 +1106,7 @@ function StartScreen({ onStartGame, wallet }) {
         right: 20px;
         background: #1a1a3a;
         border: 2px solid #4169e1;
-        border-radius: 8px;
+        borderRadius: 8px;
         padding: 10px;
         z-index: 4;
       `;
@@ -1057,11 +1117,14 @@ function StartScreen({ onStartGame, wallet }) {
         color: white;
         border: none;
         padding: 8px 16px;
-        border-radius: 4px;
+        borderRadius: 4px;
         cursor: pointer;
       `;
       disconnectBtn.addEventListener('click', () => {
         wallet.disconnect();
+        localStorage.removeItem('isProfileCreated');
+        setIsProfileCreated(false);
+        setIsInStartScreen(false);
         if (dropdown) dropdown.remove();
         dropdown = null;
       });
@@ -1072,8 +1135,10 @@ function StartScreen({ onStartGame, wallet }) {
       if (dropdown) {
         dropdown.remove();
         dropdown = null;
-      } else {
+      } else if (wallet.publicKey) {
         createDropdown();
+      } else {
+        setVisible(true);
       }
     });
     startScreen.appendChild(walletDisplay);
@@ -1084,7 +1149,7 @@ function StartScreen({ onStartGame, wallet }) {
       startScreen.remove();
       if (dropdown) dropdown.remove();
     };
-  }, []);
+  }, [wallet.publicKey]);
 
   return null;
 }
@@ -1195,6 +1260,7 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       data.achievements[key] = achievements[key].unlocked;
     });
     await set(statsRef, data);
+    // Add badge claiming logic here once gameplay is restored
   }
 
   useEffect(() => {
@@ -1205,10 +1271,12 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
     renderer.physicallyCorrectLights = false;
     renderer.toneMappingExposure = 0.8;
     document.body.appendChild(renderer.domElement);
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.top = '0';
-    renderer.domElement.style.left = '0';
-    renderer.domElement.style.zIndex = '-1';
+    renderer.domElement.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    `;
     const viewportMeta = document.createElement('meta');
     viewportMeta.name = 'viewport';
     viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
@@ -1337,20 +1405,27 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
     return () => {
       cancelAnimationFrame(animationFrameId.current);
       window.removeEventListener('resize', handleResize);
-      renderer.dispose();
+      rendererRef.current.dispose();
       sceneRef.current.traverse(child => {
         if (child instanceof THREE.Mesh) {
           child.geometry.dispose();
-          child.material.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(mat => mat.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
         }
       });
-      document.body.removeChild(renderer.domElement);
+      document.body.removeChild(rendererRef.current.domElement);
       document.querySelectorAll('.score-text, .timer-text, #pause-button').forEach(el => el.remove());
       if (mobileControlsRef.current) mobileControlsRef.current.remove();
       document.head.removeChild(timerStyle);
       document.head.removeChild(viewportMeta);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
+     Hannah: 1;
       pauseButton.removeEventListener('click', handlePauseClick);
       if (scoreIntervalRef.current) clearInterval(scoreIntervalRef.current);
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
@@ -1475,8 +1550,8 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       </div>
       <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
-      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', border-radius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
-        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', border-radius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
+      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
+        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
       </div>
       <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px', zIndex: 2 }}>{progress}%</div>
     </div>
