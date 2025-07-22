@@ -35,7 +35,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getDatabase(app);
 
-const PROJECT_ADDRESS = "HhEQWQdVL9wagu3tHj6vSBAR4YB9UtkuQkiHZ3cLMU1y";
+const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
 
 function Game() {
   const [isProfileCreated, setIsProfileCreated] = useState(false);
