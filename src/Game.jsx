@@ -37,6 +37,7 @@ const analytics = getAnalytics(app);
 const db = getDatabase(app);
 
 const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
+const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
 
 function Game() {
   const [isProfileCreated, setIsProfileCreated] = useState(false);
@@ -73,7 +74,7 @@ function Game() {
         wallet: wallet.publicKey.toString(),
         payer: wallet.publicKey.toString(),
         profileIdentity: "main",
-        merkleTree: "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh",
+        merkleTree: TREE_ADDRESS,
         userInfo: {
           name: "Astroworm Player",
           bio: "Cosmic Serpent in the Reality Coil",
@@ -86,6 +87,7 @@ function Game() {
           }
         }
       });
+      const profileAddress = txResponse.profile; // Store profile address from response
       await sendClientTransactions(client, wallet, txResponse);
 
       // Save profile to Firebase
@@ -93,6 +95,7 @@ function Game() {
       const userRef = ref(db, 'users/' + userId);
       await set(userRef, {
         profileIdentity: "main",
+        profileAddress: profileAddress, // Save profile address
         userInfo: {
           name: "Astroworm Player",
           bio: "Cosmic Serpent in the Reality Coil",
@@ -104,7 +107,7 @@ function Game() {
 
       setIsProfileCreated(true);
       setIsInStartScreen(true);
-      console.log("User and profile created and saved to Firebase");
+      console.log("User and profile created and saved to Firebase. Profile address:", profileAddress);
     } catch (error) {
       console.error('Error creating user and profile:', error);
       if (error.response) console.error('API response:', error.response.data);
@@ -115,6 +118,95 @@ function Game() {
     setGameMode(mode);
     setIsInGame(true);
   };
+
+  async function saveAchievements(wallet, gameRef) {
+    const userId = wallet.publicKey.toString();
+    const statsRef = ref(db, 'users/' + userId + '/stats');
+    const userRef = ref(db, 'users/' + userId);
+    const snapshot = await get(userRef);
+    let profileAddress = userId; // Fallback to wallet address
+    if (snapshot.exists()) {
+      profileAddress = snapshot.val().profileAddress || userId; // Use stored profile address
+    }
+
+    const data = {
+      gamesPlayed: gameRef.current.gamesPlayed,
+      highestScore: gameRef.current.highestScore,
+      longestSnake: gameRef.current.longestSnake,
+      spheresEaten: gameRef.current.spheresEaten,
+      totalPlayTime: gameRef.current.totalPlayTime,
+      bestTimedScore: gameRef.current.bestTimedScore,
+      achievements: {}
+    };
+    Object.keys(achievements).forEach(key => {
+      data.achievements[key] = achievements[key].unlocked;
+    });
+    await set(statsRef, data);
+
+    // Check badge eligibility and show claim buttons
+    const badgeConditions = [
+      { index: 0, condition: gameRef.current.gamesPlayed >= 1, name: 'First Orbit' },
+      { index: 1, condition: gameRef.current.highestScore >= 250, name: 'Nova Newbie' },
+      { index: 2, condition: gameRef.current.highestScore >= 1000, name: 'Wormhole Weaver' },
+      { index: 3, condition: gameRef.current.highestScore >= 2500, name: 'Coil Conqueror' },
+      { index: 4, condition: gameRef.current.longestSnake >= 30, name: 'Serpent Sprout' },
+      { index: 5, condition: gameRef.current.longestSnake >= 75, name: 'Titan Traverse' },
+      { index: 6, condition: gameRef.current.gameMode === 'timed' && gameRef.current.timeRemaining >= 30 && gameRef.current.score >= 100, name: 'Quantum Quickster' },
+      { index: 7, condition: gameRef.current.elapsedTime >= 300000, name: 'Void Voyager' },
+      { index: 8, condition: gameRef.current.spheresEaten >= 250, name: 'Fragment Feaster' },
+      { index: 9, condition: gameRef.current.spheresEaten >= 1000, name: 'Nebula Nomad' }
+    ];
+
+    badgeConditions.forEach(async ({ index, condition, name }) => {
+      if (condition) {
+        const claimButton = document.createElement('button');
+        claimButton.textContent = `Claim ${name} Badge`;
+        claimButton.style.cssText = `
+          position: absolute; top: ${50 + index * 40}px; left: 20px; z-index: 1000;
+          background: #4169e1; color: white; padding: 10px 20px; font-family: monospace;
+          border-radius: 5px; cursor: pointer;
+        `;
+        document.body.appendChild(claimButton);
+        claimButton.addEventListener('click', async () => {
+          try {
+            // Authenticate for badge claim
+            const { authRequest: { message: authRequest } } = await client.authRequest({
+              wallet: wallet.publicKey.toString()
+            });
+            const encodedMessage = new TextEncoder().encode(authRequest);
+            const signedUIntArray = await wallet.signMessage(encodedMessage);
+            const signature = base58.encode(signedUIntArray);
+            const { authConfirm } = await client.authConfirm({
+              wallet: wallet.publicKey.toString(),
+              signature
+            });
+            const accessToken = authConfirm.accessToken;
+
+            const response = await client.createClaimBadgeCriteriaTransaction({
+              args: {
+                profileAddress: profileAddress,
+                projectAddress: PROJECT_ADDRESS,
+                proof: BadgesCondition Public,
+                payer: wallet.publicKey.toString(),
+                criteriaIndex: index
+              },
+              fetchOptions: {
+                headers: {
+                  authorization: `Bearer ${accessToken}`
+                }
+              }
+            });
+            await sendClientTransactions(client, wallet, response.createClaimBadgeCriteriaTransaction);
+            console.log(`Badge ${name} claimed!`);
+            claimButton.remove();
+          } catch (err) {
+            console.error(`Failed to claim badge ${name}:`, err);
+            if (err.response) console.error('API response:', err.response.data);
+          }
+        });
+      }
+    });
+  }
 
   useEffect(() => {
     const globalStyle = document.createElement('style');
@@ -1167,6 +1259,13 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   async function saveAchievements(wallet, gameRef) {
     const userId = wallet.publicKey.toString();
     const statsRef = ref(db, 'users/' + userId + '/stats');
+    const userRef = ref(db, 'users/' + userId);
+    const snapshot = await get(userRef);
+    let profileAddress = userId; // Fallback to wallet address
+    if (snapshot.exists()) {
+      profileAddress = snapshot.val().profileAddress || userId; // Use stored profile address
+    }
+
     const data = {
       gamesPlayed: gameRef.current.gamesPlayed,
       highestScore: gameRef.current.highestScore,
@@ -1460,8 +1559,8 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       </div>
       <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
-      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', border-radius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
-        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', border-radius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
+      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
+        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
       </div>
       <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px', zIndex: 2 }}>{progress}%</div>
     </div>
