@@ -51,45 +51,45 @@ function Game() {
     }
   }, [wallet.connected]);
 
-  async function createUserAndProfile() {
-    if (isProfileCreated) return;
-    try {
-      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
-        project: PROJECT_ADDRESS,
-        wallet: wallet.publicKey.toString(),
-        payer: wallet.publicKey.toString(),
-        profileIdentity: "main",
-        userInfo: {
-          name: "Astroworm Player",
-          bio: "Cosmic Serpent in the Reality Coil",
-          pfp: "https://example.com/default-pfp.png"
-        }
-      });
-      await sendClientTransactions(client, wallet, txResponse);
+async function createUserAndProfile() {
+  if (isProfileCreated) return;
+  try {
+    const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
+      project: PROJECT_ADDRESS,
+      wallet: wallet.publicKey.toString(),
+      payer: wallet.publicKey.toString(),
+      profileIdentity: "main",
+      merkleTree: "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh", // Add this line for the profiles tree
+      userInfo: {
+        name: "Astroworm Player",
+        bio: "Cosmic Serpent in the Reality Coil",
+        pfp: "https://example.com/default-pfp.png"
+      }
+    });
+    await sendClientTransactions(client, wallet, txResponse);
 
-      // Save profile to Firebase
-      const userId = wallet.publicKey.toString();
-      const userRef = ref(db, 'users/' + userId);
-      await set(userRef, {
-        profileIdentity: "main",
-        userInfo: {
-          name: "Astroworm Player",
-          bio: "Cosmic Serpent in the Reality Coil",
-          pfp: "https://example.com/default-pfp.png"
-        },
-        createdAt: new Date().toISOString(),
-        wallet: userId
-      });
+    // Save profile to Firebase
+    const userId = wallet.publicKey.toString();
+    const userRef = ref(db, 'users/' + userId);
+    await set(userRef, {
+      profileIdentity: "main",
+      userInfo: {
+        name: "Astroworm Player",
+        bio: "Cosmic Serpent in the Reality Coil",
+        pfp: "https://example.com/default-pfp.png"
+      },
+      createdAt: new Date().toISOString(),
+      wallet: userId
+    });
 
-      setIsProfileCreated(true);
-      setIsInStartScreen(true);
-      console.log("User and profile created and saved to Firebase");
-    } catch (error) {
-      console.error('Error creating user and profile:', error);
-      // Optionally handle error, e.g., show message, but for now, don't set states to proceed
-    }
+    setIsProfileCreated(true);
+    setIsInStartScreen(true);
+    console.log("User and profile created and saved to Firebase");
+  } catch (error) {
+    console.error('Error creating user and profile:', error);
+    // Optionally handle error, e.g., show message, but for now, don't set states to proceed
   }
-
+}
   const startGame = (mode) => {
     setGameMode(mode);
     setIsInGame(true);
