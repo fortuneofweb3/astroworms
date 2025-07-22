@@ -23,7 +23,7 @@ const API_URL = "https://edge.test.honeycombprotocol.com/";
 const client = createEdgeClient(API_URL, true);
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBryYJ_BEXB9zuJCRnO1RdDbj1T5piAuKc",
+  apiKey: "AIzaSyBryYJ_BEXB9zuJCRnO1U5RdDbj1T5piAuKc",
   authDomain: "astroworld-ac31d.firebaseapp.com",
   databaseURL: "https://astroworld-ac31d-default-rtdb.firebaseio.com",
   projectId: "astroworld-ac31d",
@@ -87,7 +87,6 @@ function Game() {
           }
         }
       });
-      const profileAddress = txResponse.profile; // Store profile address from response
       await sendClientTransactions(client, wallet, txResponse);
 
       // Save profile to Firebase
@@ -95,7 +94,6 @@ function Game() {
       const userRef = ref(db, 'users/' + userId);
       await set(userRef, {
         profileIdentity: "main",
-        profileAddress: profileAddress, // Save profile address
         userInfo: {
           name: "Astroworm Player",
           bio: "Cosmic Serpent in the Reality Coil",
@@ -107,7 +105,7 @@ function Game() {
 
       setIsProfileCreated(true);
       setIsInStartScreen(true);
-      console.log("User and profile created and saved to Firebase. Profile address:", profileAddress);
+      console.log("User and profile created and saved to Firebase");
     } catch (error) {
       console.error('Error creating user and profile:', error);
       if (error.response) console.error('API response:', error.response.data);
@@ -118,95 +116,6 @@ function Game() {
     setGameMode(mode);
     setIsInGame(true);
   };
-
-  async function saveAchievements(wallet, gameRef) {
-    const userId = wallet.publicKey.toString();
-    const statsRef = ref(db, 'users/' + userId + '/stats');
-    const userRef = ref(db, 'users/' + userId);
-    const snapshot = await get(userRef);
-    let profileAddress = userId; // Fallback to wallet address
-    if (snapshot.exists()) {
-      profileAddress = snapshot.val().profileAddress || userId; // Use stored profile address
-    }
-
-    const data = {
-      gamesPlayed: gameRef.current.gamesPlayed,
-      highestScore: gameRef.current.highestScore,
-      longestSnake: gameRef.current.longestSnake,
-      spheresEaten: gameRef.current.spheresEaten,
-      totalPlayTime: gameRef.current.totalPlayTime,
-      bestTimedScore: gameRef.current.bestTimedScore,
-      achievements: {}
-    };
-    Object.keys(achievements).forEach(key => {
-      data.achievements[key] = achievements[key].unlocked;
-    });
-    await set(statsRef, data);
-
-    // Check badge eligibility and show claim buttons
-    const badgeConditions = [
-      { index: 0, condition: gameRef.current.gamesPlayed >= 1, name: 'First Orbit' },
-      { index: 1, condition: gameRef.current.highestScore >= 250, name: 'Nova Newbie' },
-      { index: 2, condition: gameRef.current.highestScore >= 1000, name: 'Wormhole Weaver' },
-      { index: 3, condition: gameRef.current.highestScore >= 2500, name: 'Coil Conqueror' },
-      { index: 4, condition: gameRef.current.longestSnake >= 30, name: 'Serpent Sprout' },
-      { index: 5, condition: gameRef.current.longestSnake >= 75, name: 'Titan Traverse' },
-      { index: 6, condition: gameRef.current.gameMode === 'timed' && gameRef.current.timeRemaining >= 30 && gameRef.current.score >= 100, name: 'Quantum Quickster' },
-      { index: 7, condition: gameRef.current.elapsedTime >= 300000, name: 'Void Voyager' },
-      { index: 8, condition: gameRef.current.spheresEaten >= 250, name: 'Fragment Feaster' },
-      { index: 9, condition: gameRef.current.spheresEaten >= 1000, name: 'Nebula Nomad' }
-    ];
-
-    badgeConditions.forEach(async ({ index, condition, name }) => {
-      if (condition) {
-        const claimButton = document.createElement('button');
-        claimButton.textContent = `Claim ${name} Badge`;
-        claimButton.style.cssText = `
-          position: absolute; top: ${50 + index * 40}px; left: 20px; z-index: 1000;
-          background: #4169e1; color: white; padding: 10px 20px; font-family: monospace;
-          border-radius: 5px; cursor: pointer;
-        `;
-        document.body.appendChild(claimButton);
-        claimButton.addEventListener('click', async () => {
-          try {
-            // Authenticate for badge claim
-            const { authRequest: { message: authRequest } } = await client.authRequest({
-              wallet: wallet.publicKey.toString()
-            });
-            const encodedMessage = new TextEncoder().encode(authRequest);
-            const signedUIntArray = await wallet.signMessage(encodedMessage);
-            const signature = base58.encode(signedUIntArray);
-            const { authConfirm } = await client.authConfirm({
-              wallet: wallet.publicKey.toString(),
-              signature
-            });
-            const accessToken = authConfirm.accessToken;
-
-            const response = await client.createClaimBadgeCriteriaTransaction({
-              args: {
-                profileAddress: profileAddress,
-                projectAddress: PROJECT_ADDRESS,
-                proof: BadgesCondition Public,
-                payer: wallet.publicKey.toString(),
-                criteriaIndex: index
-              },
-              fetchOptions: {
-                headers: {
-                  authorization: `Bearer ${accessToken}`
-                }
-              }
-            });
-            await sendClientTransactions(client, wallet, response.createClaimBadgeCriteriaTransaction);
-            console.log(`Badge ${name} claimed!`);
-            claimButton.remove();
-          } catch (err) {
-            console.error(`Failed to claim badge ${name}:`, err);
-            if (err.response) console.error('API response:', err.response.data);
-          }
-        });
-      }
-    });
-  }
 
   useEffect(() => {
     const globalStyle = document.createElement('style');
@@ -1259,13 +1168,6 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   async function saveAchievements(wallet, gameRef) {
     const userId = wallet.publicKey.toString();
     const statsRef = ref(db, 'users/' + userId + '/stats');
-    const userRef = ref(db, 'users/' + userId);
-    const snapshot = await get(userRef);
-    let profileAddress = userId; // Fallback to wallet address
-    if (snapshot.exists()) {
-      profileAddress = snapshot.val().profileAddress || userId; // Use stored profile address
-    }
-
     const data = {
       gamesPlayed: gameRef.current.gamesPlayed,
       highestScore: gameRef.current.highestScore,
