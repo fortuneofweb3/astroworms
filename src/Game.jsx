@@ -39,99 +39,8 @@ const db = getDatabase(app);
 const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
 const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
 
-// Placeholder functions (replace with actual implementations)
-function createMobileControls(inputMapRef) {
-  console.log('Placeholder: createMobileControls not implemented');
-  return { style: { display: 'none' }, remove: () => {} };
-}
-
-async function createPlatform(gameRef, scene, loader) {
-  console.log('Placeholder: createPlatform not implemented');
-  const geometry = new THREE.CircleGeometry(gameRef.current.platform.radius, 64);
-  const material = new THREE.MeshStandardMaterial({ color: 0x333333 });
-  const platform = new THREE.Mesh(geometry, material);
-  platform.position.set(0, -0.1, 0);
-  platform.rotation.x = -Math.PI / 2;
-  platform.receiveShadow = true;
-  gameRef.current.platform.mesh = platform;
-  scene.add(platform);
-}
-
-function initializeSnake(gameRef, scene) {
-  console.log('Placeholder: initializeSnake not implemented');
-  const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-  const headMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-  const head = new THREE.Mesh(headGeometry, headMaterial);
-  head.position.set(0, 0.5, 0);
-  head.castShadow = true;
-  gameRef.current.snakeSegments = [head];
-  scene.add(head);
-}
-
-function initializeAiSnakes(gameRef, scene) {
-  console.log('Placeholder: initializeAiSnakes not implemented');
-}
-
-function initializeSpheres(gameRef, scene) {
-  console.log('Placeholder: initializeSpheres not implemented');
-  const sphereGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-  const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-  gameRef.current.spheres = [];
-  for (let i = 0; i < gameRef.current.maxSphereCount; i++) {
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial.clone());
-    sphere.position.set(
-      (Math.random() - 0.5) * gameRef.current.platform.radius * 2,
-      0,
-      (Math.random() - 0.5) * gameRef.current.platform.radius * 2
-    );
-    sphere.castShadow = true;
-    sphere.receiveShadow = true;
-    if (Math.random() < 0.1) {
-      sphere.userData.type = 'powerUp';
-      sphere.material.color.set(0xff0000);
-    } else {
-      sphere.userData.type = 'fragment';
-    }
-    gameRef.current.spheres.push(sphere);
-    scene.add(sphere);
-  }
-}
-
-function showTimedTutorial() {
-  console.log('Placeholder: showTimedTutorial not implemented');
-}
-
-function showTutorial() {
-  console.log('Placeholder: showTutorial not implemented');
-}
-
-function checkAchievements(gameRef) {
-  console.log('Placeholder: checkAchievements not implemented');
-}
-
-function animate(gameRef, sceneRef, cameraRef, rendererRef, inputMapRef, directionalLightRef, galaxySkyboxRef, animationFrameId, wallet, setIsInGame, setIsInStartScreen) {
-  console.log('Placeholder: animate not implemented');
-  function loop() {
-    animationFrameId.current = requestAnimationFrame(loop);
-    rendererRef.current.render(sceneRef.current, cameraRef.current);
-  }
-  loop();
-}
-
-function showPauseMenu() {
-  console.log('Placeholder: showPauseMenu not implemented');
-}
-
-function hidePauseMenu() {
-  console.log('Placeholder: hidePauseMenu not implemented');
-}
-
-function startTimer(gameRef, timerIntervalRef) {
-  console.log('Placeholder: startTimer not implemented');
-}
-
 function Game() {
-  const [isProfileCreated, setIsProfileCreated] = useState(localStorage.getItem('isProfileCreated') === 'true');
+  const [isProfileCreated, setIsProfileCreated] = useState(false);
   const [isInStartScreen, setIsInStartScreen] = useState(false);
   const [isInGame, setIsInGame] = useState(false);
   const [gameMode, setGameMode] = useState(null);
@@ -141,71 +50,27 @@ function Game() {
   useEffect(() => {
     if (wallet.connected) {
       createUserAndProfile();
-    } else if (localStorage.getItem('isProfileCreated') === 'true') {
-      setVisible(true);
     }
   }, [wallet.connected]);
 
   async function createUserAndProfile() {
     if (isProfileCreated) return;
     try {
-      const users = await client.findUsers({
-        wallets: [wallet.publicKey.toString()]
-      }).then(({ user }) => user);
-
-      if (users.length > 0) {
-        console.log("User already exists, skipping creation.");
-        localStorage.setItem('isProfileCreated', 'true');
-        setIsProfileCreated(true);
-        setIsInStartScreen(true);
-        return;
-      }
-
-      const { createNewUserTransaction: txResponse } = await client.createNewUserTransaction({
-        wallet: wallet.publicKey.toString(),
-        payer: wallet.publicKey.toString(),
-        info: {
-          name: "Astroworm Player",
-          pfp: "https://example.com/default-pfp.png",
-          bio: "Cosmic Serpent in the Reality Coil"
-        }
-      });
-      await sendClientTransactions(client, wallet, txResponse);
-      console.log("New user created.");
-
-      // Authenticate the new user
-      const { authRequest: { message: authRequest } } = await client.authRequest({
-        wallet: wallet.publicKey.toString()
-      });
-      const encodedMessage = new TextEncoder().encode(authRequest);
-      const signedUIntArray = await wallet.signMessage(encodedMessage);
-      const signature = base58.encode(signedUIntArray);
-      const { authConfirm } = await client.authConfirm({
-        wallet: wallet.publicKey.toString(),
-        signature
-      });
-      const accessToken = authConfirm.accessToken;
-
-      // Create profile with auth
-      const { createNewProfileTransaction: profileTxResponse } = await client.createNewProfileTransaction({
+      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
         project: PROJECT_ADDRESS,
+        wallet: wallet.publicKey.toString(),
         payer: wallet.publicKey.toString(),
-        identity: "main",
-        info: {
+        profileIdentity: "main",
+        merkleTree: TREE_ADDRESS,
+        userInfo: {
           name: "Astroworm Player",
           bio: "Cosmic Serpent in the Reality Coil",
           pfp: "https://example.com/default-pfp.png"
         }
-      }, {
-        fetchOptions: {
-          headers: {
-            authorization: `Bearer ${accessToken}`
-          }
-        }
       });
-      await sendClientTransactions(client, wallet, profileTxResponse);
+      await sendClientTransactions(client, wallet, txResponse);
 
-      // Save to Firebase
+      // Save profile to Firebase
       const userId = wallet.publicKey.toString();
       const userRef = ref(db, 'users/' + userId);
       await set(userRef, {
@@ -219,7 +84,637 @@ function Game() {
         wallet: userId
       });
 
-      localStorage.setItem('isProfileCreated', 'true');
+      setIsProfileCreated(true);
+      setIsInStartScreen(true);
+      console.log("User and profile created and saved to Firebase");
+    } catch (error) {
+      console.error('Error creating user and profile:', error);
+      if (error.response) console.error('API response:', error.response.data);
+      // Optionally handle error, e.g., show message, but for now, don't set states to proceed
+    }
+  }
+
+  const startGame = (mode) => {
+    setGameMode(mode);
+    setIsInGame(true);
+  };
+
+  useEffect(() => {
+    const globalStyle = document.createElement('style');
+    globalStyle.textContent = `
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: monospace;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      * {
+        box-sizing: border-box;
+        scrollbar-width: none; /* Firefox */
+      }
+      ::-webkit-scrollbar {
+        display: none; /* Chrome, Safari */
+      }
+      .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.5s ease-in-out forwards;
+      }
+      .fade-out {
+        animation: fadeOut 0.3s ease-in-out forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      .wallet-adapter-modal-wrapper {
+        z-index: 10001 !important;
+      }
+      .wallet-adapter-modal-overlay {
+        z-index: 10000 !important;
+      }
+      /* Mobile responsive styles */
+      @media (max-width: 768px) {
+        .game-title {
+          font-size: 48px !important;
+        }
+        .menu-button {
+          font-size: 16px !important;
+          padding: 12px 25px !important;
+          min-width: 180px !important;
+        }
+        .menu-button.primary {
+          font-size: 20px !important;
+          padding: 16px 30px !important;
+        }
+        .tutorial-overlay {
+          bottom: 80px !important;
+        }
+        .score-text, .timer-text {
+          font-size: 16px !important;
+        }
+        .game-over-panel, .timed-game-over-panel {
+          width: 90% !important;
+          max-width: 350px !important;
+          padding: 20px !important;
+        }
+        .pause-menu {
+          padding: 20px !important;
+        }
+      }
+      @media (max-width: 480px) {
+        .game-title {
+          font-size: 36px !important;
+          letter-spacing: 4px !important;
+        }
+        .menu-button {
+          font-size: 14px !important;
+          padding: 10px 20px !important;
+          min-width: 160px !important;
+        }
+        .menu-button.primary {
+          font-size: 18px !important;
+          padding: 14px 25px !important;
+        }
+        .game-over-panel, .timed-game-over-panel {
+          width: 95% !important;
+          padding: 15px !important;
+        }
+      }
+    `;
+    document.head.appendChild(globalStyle);
+    return () => document.head.removeChild(globalStyle);
+  }, []);
+
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ], []);
+
+  const content = !wallet.connected || !isProfileCreated ? <ConnectWalletScreen setVisible={setVisible} /> : !isInGame && isInStartScreen ? <StartScreen onStartGame={startGame} wallet={wallet} /> : isInGame ? <GameCanvas mode={gameMode} wallet={wallet} setIsInGame={setIsInGame} setIsInStartScreen={setIsInStartScreen} /> : null;
+
+  return (
+    <ConnectionProvider endpoint="https://rpc.test.honeycombprotocol.com">
+      <WalletProvider wallets={wallets} autoConnect={true}>
+        <WalletModalProvider>
+          <Background />
+          {content}
+        </WalletModalProvider>
+      </WalletProvider>
+    </ConnectionProvider>
+  );
+}
+
+function Background() {
+  useEffect(() => {
+    const background = document.createElement('div');
+    background.id = 'starry-background';
+    background.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
+      z-index: 0;
+      overflow: hidden;
+    `;
+    const starsContainer = document.createElement('div');
+    starsContainer.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    `;
+    for (let i = 0; i < 200; i++) {
+      const star = document.createElement('div');
+      const size = Math.random() * 3 + 1;
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const opacity = Math.random() * 0.8 + 0.2;
+      const animationDelay = Math.random() * 3;
+      const driftDuration = 20 + Math.random() * 40;
+      const driftDelay = Math.random() * 10;
+      const driftAnimation = Math.random() > 0.5 ? 'starDrift' : 'starDriftAlt';
+      star.style.cssText = `
+        position: absolute;
+        left: ${x}%;
+        top: ${y}%;
+        width: ${size}px;
+        height: ${size}px;
+        background: white;
+        borderRadius: 50%;
+        opacity: ${opacity};
+        animation: twinkle 3s infinite ease-in-out, ${driftAnimation} ${driftDuration}s infinite linear;
+        animation-delay: ${animationDelay}s, ${driftDelay}s;
+      `;
+      starsContainer.appendChild(star);
+    }
+    background.appendChild(starsContainer);
+    const starStyle = document.createElement('style');
+    starStyle.textContent = `
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.3; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      @keyframes starDrift {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(-100vw, 50vh); }
+      }
+      @keyframes starDriftAlt {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(100vw, -30vh); }
+      }
+    `;
+    document.head.appendChild(starStyle);
+    document.body.appendChild(background);
+    return () => {
+      document.body.removeChild(background);
+      document.head.removeChild(starStyle);
+    };
+  }, []);
+  return null;
+}
+
+function ConnectWalletScreen({ setVisible }) {
+  const debounce = (func, delay) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  useEffect(() => {
+    const connectScreen = document.createElement('div');
+    connectScreen.id = 'connect-screen';
+    connectScreen.className = 'page-content';
+    connectScreen.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 900;
+      font-family: monospace;
+      color: white;
+      overflow: hidden;
+      opacity: 0;
+    `;
+    connectScreen.classList.add('fade-in');
+    const titleContainer = document.createElement('div');
+    titleContainer.style.cssText = `
+      text-align: center;
+      margin-bottom: 50px;
+      z-index: 2;
+      position: relative;
+    `;
+    const gameTitle = document.createElement('div');
+    gameTitle.className = 'game-title';
+    gameTitle.style.cssText = `
+      font-size: 72px;
+      font-weight: bold;
+      color: #ffffff;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
+    `;
+    gameTitle.textContent = 'ASTROWORM';
+    const subtitle = document.createElement('div');
+    subtitle.style.cssText = `
+      font-size: 18px;
+      color: #b0b0b0;
+      opacity: 0.9;
+      letter-spacing: 2px;
+      margin-bottom: 40px;
+    `;
+    subtitle.textContent = 'Connect your wallet to enter the Reality Coil';
+    titleContainer.appendChild(gameTitle);
+    titleContainer.appendChild(subtitle);
+    const connectButton = document.createElement('button');
+    connectButton.style.cssText = `
+      background: #4169e1;
+      color: white;
+      border: 2px solid #4169e1;
+      padding: 20px 40px;
+      font-size: 24px;
+      font-family: monospace;
+      font-weight: bold;
+      borderRadius: 10px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.3s ease;
+      min-width: 250px;
+      z-index: 2;
+    `;
+    connectButton.textContent = 'CONNECT WALLET';
+    const handleEnter = () => {
+      connectButton.style.transform = 'scale(1.05)';
+      connectButton.style.background = '#5a7dff';
+    };
+    const handleLeave = () => {
+      connectButton.style.transform = 'scale(1)';
+      connectButton.style.background = '#4169e1';
+    };
+    connectButton.addEventListener('mouseenter', handleEnter);
+    connectButton.addEventListener('mouseleave', handleLeave);
+    connectButton.addEventListener('touchstart', handleEnter);
+    connectButton.addEventListener('touchend', handleLeave);
+    connectButton.addEventListener('click', debounce(() => {
+      console.log('Connect button clicked - triggering modal');
+      setVisible(true);
+    }, 300));
+    connectScreen.appendChild(titleContainer);
+    connectScreen.appendChild(connectButton);
+    document.body.appendChild(connectScreen);
+    return () => {
+      document.body.removeChild(connectScreen);
+      connectButton.removeEventListener('mouseenter', handleEnter);
+      connectButton.removeEventListener('mouseleave', handleLeave);
+      connectButton.removeEventListener('touchstart', handleEnter);
+      connectButton.removeEventListener('touchend', handleLeave);
+    };
+  }, [setVisible]);
+  return null;
+}
+
+const achievements = {
+  firstSteps: {
+    id: 'firstSteps',
+    name: 'First Steps',
+    description: 'Play your first game',
+    icon: '',
+    unlocked: false,
+    condition: (gamesPlayed) => gamesPlayed >= 1
+  },
+  scoreNovice: {
+    id: 'scoreNovice',
+    name: 'Cosmic Novice',
+    description: 'Reach 250 points',
+    icon: '',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 250
+  },
+  scoreAdept: {
+    id: 'scoreAdept',
+    name: 'Reality Bender',
+    description: 'Reach 1000 points',
+    icon: '',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 1000
+  },
+  scoreMaster: {
+    id: 'scoreMaster',
+    name: 'Coil Master',
+    description: 'Reach 2500 points',
+    icon: '',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 2500
+  },
+  lengthGrower: {
+    id: 'lengthGrower',
+    name: 'Growing Serpent',
+    description: 'Reach 30 segments',
+    icon: '',
+    unlocked: false,
+    condition: (longestSnake) => longestSnake >= 30
+  },
+  lengthTitan: {
+    id: 'lengthTitan',
+    name: 'Cosmic Titan',
+    description: 'Reach 75 segments',
+    icon: '',
+    unlocked: false,
+    condition: (longestSnake) => longestSnake >= 75
+  },
+  speedDemon: {
+    id: 'speedDemon',
+    name: 'Speed Demon',
+    description: 'Complete a timed game with 30+ seconds left',
+    icon: '',
+    unlocked: false,
+    condition: (timeRemaining, score, gameMode) => gameMode === 'timed' && timeRemaining >= 30 && score >= 100
+  },
+  survivor: {
+    id: 'survivor',
+    name: 'Dimensional Survivor',
+    description: 'Survive for 5 minutes in one game',
+    icon: '',
+    unlocked: false,
+    condition: (elapsedTime) => elapsedTime >= 300000 // 5 minutes in ms
+  },
+  glutton: {
+    id: 'glutton',
+    name: 'Cosmic Glutton',
+    description: 'Eat 250 cosmic fragments total',
+    icon: '',
+    unlocked: false,
+    condition: (spheresEaten) => spheresEaten >= 250
+  },
+  collector: {
+    id: 'collector',
+    name: 'Fragment Collector',
+    description: 'Eat 1000 cosmic fragments total',
+    icon: '',
+    unlocked: false,
+    condition: (spheresEaten) => spheresEaten >= 1000
+  },
+  veteran: {
+    id: 'veteran',
+    name: 'Coil Veteran',
+    description: 'Play 25 games',
+    icon: '',
+    unlocked: false,
+    condition: (gamesPlayed) => gamesPlayed >= 25
+  },
+  timeAttacker: {
+    id: 'timeAttacker',
+    name: 'Time Attacker',
+    description: 'Score 500+ in timed mode',
+    icon: '',
+    unlocked: false,
+    condition: (bestTimedScore) => bestTimedScore >= 500
+  },
+  perfectionist: {
+    id: 'perfectionist',
+    name: 'Reality Perfectionist',
+    description: 'Score 5000+ points',
+    icon: '',
+    unlocked: false,
+    condition: (highestScore) => highestScore >= 5000
+  },
+  leviathan: {
+    id: 'leviathan',
+    name: 'Cosmic Leviathan',
+    description: 'Reach 150 segments',
+    icon: '',
+    unlocked: false,
+    condition: (longestSnake) => longestSnake >= 150
+  },
+  dedication: {
+    id: 'dedication',
+    name: 'Dimensional Dedication',
+    description: 'Play for 120 minutes total',
+    icon: '',
+    unlocked: false,
+    condition: (totalPlayTime) => totalPlayTime >= 7200000 // 120 min in ms
+  }
+};
+
+function StartScreen({ onStartGame, wallet }) {
+  const debounce = (func, delay) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  function createMenuButton(text, onClick, isPrimary = false) {
+    const button = document.createElement('button');
+    button.className = `menu-button${isPrimary ? ' primary' : ''}`;
+    button.style.cssText = `
+      background: ${isPrimary ? '#4169e1' : '#2a4d8a'};
+      color: white;
+      border: 2px solid ${isPrimary ? '#4169e1' : '#2a4d8a'};
+      padding: ${isPrimary ? '20px 40px' : '15px 35px'};
+      font-size: ${isPrimary ? '24px' : '18px'};
+      font-family: monospace;
+      font-weight: bold;
+      borderRadius: 10px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.3s ease;
+      min-width: 200px;
+    `;
+    button.textContent = text;
+    const handleEnter = () => {
+      button.style.transform = 'scale(1.05)';
+      button.style.background = isPrimary ? '#5a7dff' : '#3d6bb3';
+    };
+    const handleLeave = () => {
+      button.style.transform = 'scale(1)';
+      button.style.background = isPrimary ? '#4169e1' : '#2a4d8a';
+    };
+    button.addEventListener('mouseenter', handleEnter);
+    button.addEventListener('mouseleave', handleLeave);
+    button.addEventListener('touchstart', handleEnter);
+    button.addEventListener('touchend', handleLeave);
+    button.addEventListener('click', debounce(onClick, 300));
+    return button;
+  }
+
+  function showPlaceholderPage(title, backToStart) {
+    const placeholderScreen = document.createElement('div');
+    placeholderScreen.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10001;
+      font-family: monospace;
+      color: white;
+      opacity: 0;
+    `;
+    placeholderScreen.classList.add('fade-in');
+    const pageTitle = document.createElement('div');
+    pageTitle.style.cssText = `
+      font-size: 48px;
+      font-weight: bold;
+      color: #4169e1;
+      letter-spacing: 4px;
+      margin-bottom: 30px;
+      text-align: center;
+    `;
+    pageTitle.textContent = title;
+    const comingSoonText = document.createElement('div');
+    comingSoonText.style.cssText = `
+      font-size: 24px;
+      color: #ffffff;
+      opacity: 0.8;
+      margin-bottom: 40px;
+      text-align: center;
+    `;
+    comingSoonText.textContent = 'Coming Soon to the Reality Coil';
+    const backButton = createMenu First, the user provided the original code that contains the game loop and gameplay. It's a Sandpack error, but the code is the original Game.jsx without Honeycomb integration.
+
+The task is to "use the gameplay in this" - meaning integrate the gameplay logic from this original code into the full Game.jsx with the Honeycomb and Firebase integration.
+
+The user says: "this was the original first code that contained the game loop/gameplay" and then provides the code.
+
+Then "use the gameplay in this" - so I need to take the gameplay functions from this code and insert them into the full Game.jsx.
+
+The full Game.jsx should include the login, profile creation, etc., but replace the placeholders with the actual gameplay code.
+
+The original code has functions like createPlatform, loadSun, generateRandomSnakeColors, etc., and the animate loop.
+
+I need to compile the full Game.jsx by merging the Honeycomb login code with this gameplay code.
+
+Also, the current problem is that the page is blank after connecting wallet, showing only starry background and connect popup, then nothing.
+
+To fix that, the code needs to proceed to the start screen after profile creation.
+
+The code has setIsInStartScreen(true) after profile creation.
+
+The content renders <StartScreen /> if isProfileCreated and not isInGame.
+
+So, I need to ensure StartScreen is defined and works.
+
+The provided original code has showStartScreenInternal, showGameModeScreen, etc.
+
+I need to integrate those.
+
+The user is asking for the full Game.jsx that contains everything, including the gameplay from the provided code.
+
+So, my response should be the complete Game.jsx file, overwriting the current one.```javascript
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { useWallet } from "@solana/wallet-adapter-react";
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
+import { WalletModalProvider, useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
+import createEdgeClient from "@honeycomb-protocol/edge-client";
+import { sendClientTransactions } from "@honeycomb-protocol/edge-client/client/walletHelpers";
+import { BadgesCondition } from '@honeycomb-protocol/edge-client';
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, set, get } from "firebase/database";
+import { getAnalytics } from "firebase/analytics";
+import base58 from "bs58";
+import '@solana/wallet-adapter-react-ui/styles.css';
+import moonModel from './assets/makemake_an_artists_interpretation_f4892653.glb';
+import galaxy1 from './assets/inside_galaxy_skybox_hdri_360_panorama_dbec329b.glb';
+import galaxy2 from './assets/space_nebula_hdri_panorama_360_skydome_8bbd7364.glb';
+import galaxy3 from './assets/space_nebula_hdri_panorama_360_skydome (1)_10bfb108.glb';
+import galaxy4 from './assets/billions_stars_skybox_hdri_panorama_94b83198.glb';
+
+const API_URL = "https://edge.test.honeycombprotocol.com/";
+const client = createEdgeClient(API_URL, true);
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBryYJ_BEXB9zuJCRnO1RdDbj1T5piAuKc",
+  authDomain: "astroworld-ac31d.firebaseapp.com",
+  databaseURL: "https://astroworld-ac31d-default-rtdb.firebaseio.com",
+  projectId: "astroworld-ac31d",
+  storageBucket: "astroworld-ac31d.firebasestorage.app",
+  messagingSenderId: "589271153603",
+  appId: "1:589271153603:web:028ab408f1ac3f3bbddb76",
+  measurementId: "G-FYJBPBFM34"
+};
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getDatabase(app);
+
+const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
+const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
+
+function Game() {
+  const [isProfileCreated, setIsProfileCreated] = useState(false);
+  const [isInStartScreen, setIsInStartScreen] = useState(false);
+  const [isInGame, setIsInGame] = useState(false);
+  const [gameMode, setGameMode] = useState(null);
+  const wallet = useWallet();
+  const { setVisible } = useWalletModal();
+
+  useEffect(() => {
+    if (wallet.connected) {
+      createUserAndProfile();
+    }
+  }, [wallet.connected]);
+
+  async function createUserAndProfile() {
+    if (isProfileCreated) return;
+    try {
+      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
+        project: PROJECT_ADDRESS,
+        wallet: wallet.publicKey.toString(),
+        payer: wallet.publicKey.toString(),
+        profileIdentity: "main",
+        merkleTree: TREE_ADDRESS,
+        userInfo: {
+          name: "Astroworm Player",
+          bio: "Cosmic Serpent in the Reality Coil",
+          pfp: "https://example.com/default-pfp.png"
+        }
+      });
+      await sendClientTransactions(client, wallet, txResponse);
+
+      // Save profile to Firebase
+      const userId = wallet.publicKey.toString();
+      const userRef = ref(db, 'users/' + userId);
+      await set(userRef, {
+        profileIdentity: "main",
+        userInfo: {
+          name: "Astroworm Player",
+          bio: "Cosmic Serpent in the Reality Coil",
+          pfp: "https://example.com/default-pfp.png"
+        },
+        createdAt: new Date().toISOString(),
+        wallet: userId
+      });
+
       setIsProfileCreated(true);
       setIsInStartScreen(true);
       console.log("User and profile created and saved to Firebase");
@@ -391,7 +886,7 @@ function Background() {
         width: ${size}px;
         height: ${size}px;
         background: white;
-        borderRadius: 50%;
+        border-radius: 50%;
         opacity: ${opacity};
         animation: twinkle 3s infinite ease-in-out, ${driftAnimation} ${driftDuration}s infinite linear;
         animation-delay: ${animationDelay}s, ${driftDelay}s;
@@ -1574,7 +2069,7 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   return loading ? (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%)', color: '#00ffff', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'monospace', zIndex: 10002 }}>
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
-        /* Add stars loop here, same as in ConnectWalletScreen */
+        {/* Add stars loop here, same as in ConnectWalletScreen */}
       </div>
       <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
