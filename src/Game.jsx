@@ -39,121 +39,8 @@ const db = getDatabase(app);
 const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
 const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
 
-// Placeholder functions (replace with actual implementations)
-function createMobileControls(inputMapRef) {
-  console.log('Placeholder: createMobileControls not implemented');
-  return { style: { display: 'none' }, remove: () => {} };
-}
-
-async function createPlatform(gameRef, scene, loader) {
-  console.log('Placeholder: createPlatform not implemented');
-  const geometry = new THREE.CircleGeometry(gameRef.current.platform.radius, 64);
-  const material = new THREE.MeshStandardMaterial({ color: 0x333333 });
-  const platform = new THREE.Mesh(geometry, material);
-  platform.position.set(0, -0.1, 0);
-  platform.rotation.x = -Math.PI / 2;
-  platform.receiveShadow = true;
-  gameRef.current.platform.mesh = platform;
-  scene.add(platform);
-}
-
-function initializeSnake(gameRef, scene) {
-  console.log('Placeholder: initializeSnake not implemented');
-  // Example implementation
-  const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-  const headMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-  const head = new THREE.Mesh(headGeometry, headMaterial);
-  head.position.set(0, 0.5, 0);
-  head.castShadow = true;
-  gameRef.current.snakeSegments = [head];
-  scene.add(head);
-}
-
-function initializeAiSnakes(gameRef, scene) {
-  console.log('Placeholder: initializeAiSnakes not implemented');
-  // Example implementation
-  gameRef.current.aiSnakes = [];
-}
-
-function initializeSpheres(gameRef, scene) {
-  console.log('Placeholder: initializeSpheres not implemented');
-  // Example implementation
-  const sphereGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-  const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-  gameRef.current.spheres = [];
-  for (let i = 0; i < gameRef.current.maxSphereCount; i++) {
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial.clone());
-    sphere.position.set(
-      (Math.random() - 0.5) * gameRef.current.platform.radius * 2,
-      0,
-      (Math.random() - 0.5) * gameRef.current.platform.radius * 2
-    );
-    sphere.castShadow = true;
-    sphere.receiveShadow = true;
-    if (Math.random() < 0.1) {
-      sphere.userData.type = 'powerUp';
-      sphere.material.color.set(0xff0000);
-    } else {
-      sphere.userData.type = 'fragment';
-    }
-    gameRef.current.spheres.push(sphere);
-    scene.add(sphere);
-  }
-}
-
-function showTimedTutorial() {
-  console.log('Placeholder: showTimedTutorial not implemented');
-  // Example: Show a simple alert
-  alert('Timed Mode Tutorial: Score as much as possible in 60 seconds!');
-}
-
-function showTutorial() {
-  console.log('Placeholder: showTutorial not implemented');
-  // Example: Show a simple alert
-  alert('Normal Mode Tutorial: Survive and eat fragments to grow!');
-}
-
-function checkAchievements(gameRef) {
-  console.log('Placeholder: checkAchievements not implemented');
-  // Example: Check first achievement
-  if (gameRef.current.gamesPlayed >= 1) {
-    achievements.firstSteps.unlocked = true;
-  }
-}
-
-function animate(gameRef, sceneRef, cameraRef, rendererRef, inputMapRef, directionalLightRef, galaxySkyboxRef, animationFrameId, wallet, setIsInGame, setIsInStartScreen) {
-  console.log('Placeholder: animate not implemented');
-  // Example basic animation loop
-  function loop() {
-    animationFrameId.current = requestAnimationFrame(loop);
-    rendererRef.current.render(sceneRef.current, cameraRef.current);
-  }
-  loop();
-}
-
-function showPauseMenu() {
-  console.log('Placeholder: showPauseMenu not implemented');
-  // Example: Show a simple pause alert
-  alert('Game Paused');
-}
-
-function hidePauseMenu() {
-  console.log('Placeholder: hidePauseMenu not implemented');
-}
-
-function startTimer(gameRef, timerIntervalRef) {
-  console.log('Placeholder: startTimer not implemented');
-  // Example: Simple timer
-  timerIntervalRef.current = setInterval(() => {
-    gameRef.current.timeRemaining -= 1;
-    if (gameRef.current.timeRemaining <= 0) {
-      clearInterval(timerIntervalRef.current);
-    }
-  }, 1000);
-}
-
 function Game() {
-  const [isProfileCreated, setIsProfileCreated] = useState(localStorage.getItem('isProfileCreated') === 'true');
+  const [isProfileCreated, setIsProfileCreated] = useState(false);
   const [isInStartScreen, setIsInStartScreen] = useState(false);
   const [isInGame, setIsInGame] = useState(false);
   const [gameMode, setGameMode] = useState(null);
@@ -163,51 +50,72 @@ function Game() {
   useEffect(() => {
     if (wallet.connected) {
       createUserAndProfile();
-    } else if (localStorage.getItem('isProfileCreated') === 'true') {
-      setVisible(true);
     }
   }, [wallet.connected]);
 
   async function createUserAndProfile() {
     if (isProfileCreated) return;
     try {
+      // Check if user exists
       const users = await client.findUsers({
         wallets: [wallet.publicKey.toString()]
       }).then(({ user }) => user);
 
+      let accessToken;
       if (users.length > 0) {
-        console.log("User already exists, skipping creation.");
-        localStorage.setItem('isProfileCreated', 'true');
-        setIsProfileCreated(true);
-        setIsInStartScreen(true);
-        return;
+        console.log("User already exists, logging in...");
+        const { authRequest: { message: authRequest } } = await client.authRequest({
+          wallet: wallet.publicKey.toString()
+        });
+        const encodedMessage = new TextEncoder().encode(authRequest);
+        const signedUIntArray = await wallet.signMessage(encodedMessage);
+        const signature = base58.encode(signedUIntArray);
+        const { authConfirm } = await client.authConfirm({
+          wallet: wallet.publicKey.toString(),
+          signature
+        });
+        accessToken = authConfirm.accessToken;
+
+        // Check if profile exists
+        const profiles = await client.findProfiles({
+          userIds: [users[0].id]
+        }).then(({ profile }) => profile);
+
+        if (profiles.length > 0) {
+          console.log("Profile already exists, skipping creation.");
+          setIsProfileCreated(true);
+          setIsInStartScreen(true);
+          return;
+        }
+      } else {
+        // Create new user if not exists
+        const { createNewUserTransaction: txResponse } = await client.createNewUserTransaction({
+          wallet: wallet.publicKey.toString(),
+          payer: wallet.publicKey.toString(),
+          info: {
+            name: "Astroworm Player",
+            bio: "Cosmic Serpent in the Reality Coil",
+            pfp: "https://example.com/default-pfp.png"
+          }
+        });
+        await sendClientTransactions(client, wallet, txResponse);
+        console.log("New user created.");
+
+        // Authenticate the new user
+        const { authRequest: { message: authRequest } } = await client.authRequest({
+          wallet: wallet.publicKey.toString()
+        });
+        const encodedMessage = new TextEncoder().encode(authRequest);
+        const signedUIntArray = await wallet.signMessage(encodedMessage);
+        const signature = base58.encode(signedUIntArray);
+        const { authConfirm } = await client.authConfirm({
+          wallet: wallet.publicKey.toString(),
+          signature
+        });
+        accessToken = authConfirm.accessToken;
       }
 
-      const { createNewUserTransaction: txResponse } = await client.createNewUserTransaction({
-        wallet: wallet.publicKey.toString(),
-        payer: wallet.publicKey.toString(),
-        info: {
-          name: "Astroworm Player",
-          pfp: "https://example.com/default-pfp.png",
-          bio: "Cosmic Serpent in the Reality Coil"
-        }
-      });
-      await sendClientTransactions(client, wallet, txResponse);
-
-      // Authenticate the new user
-      const { authRequest: { message: authRequest } } = await client.authRequest({
-        wallet: wallet.publicKey.toString()
-      });
-      const encodedMessage = new TextEncoder().encode(authRequest);
-      const signedUIntArray = await wallet.signMessage(encodedMessage);
-      const signature = base58.encode(signedUIntArray);
-      const { authConfirm } = await client.authConfirm({
-        wallet: wallet.publicKey.toString(),
-        signature
-      });
-      const accessToken = authConfirm.accessToken;
-
-      // Create profile with auth
+      // Create profile
       const { createNewProfileTransaction: profileTxResponse } = await client.createNewProfileTransaction({
         project: PROJECT_ADDRESS,
         payer: wallet.publicKey.toString(),
@@ -240,12 +148,11 @@ function Game() {
         wallet: userId
       });
 
-      localStorage.setItem('isProfileCreated', 'true');
       setIsProfileCreated(true);
       setIsInStartScreen(true);
-      console.log("User and profile created and saved to Firebase");
+      console.log("Profile created and saved to Firebase");
     } catch (error) {
-      console.error('Error creating user and profile:', error);
+      console.error('Error creating profile:', error);
       if (error.response) console.error('API response:', error.response.data);
     }
   }
