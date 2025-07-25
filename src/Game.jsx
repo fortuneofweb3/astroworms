@@ -45,7 +45,7 @@ function Game() {
   const [isInGame, setIsInGame] = useState(false);
   const [gameMode, setGameMode] = useState(null);
   const wallet = useWallet();
-  const { setVisible } = useWalletModal();
+  const { setVisible } from useWalletModal();
 
   useEffect(() => {
     if (wallet.connected) {
@@ -1450,7 +1450,7 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
       gameRef.current.food = [];
       initializeSpheres(gameRef, sceneRef.current);
       setLoading(false);
-    }, xhr => {
+    }, (xhr) => {
       setProgress(Math.min(100, (xhr.loaded / xhr.total * 100).toFixed(0)));
     }, error => {
       console.error('Error loading game assets:', error);
