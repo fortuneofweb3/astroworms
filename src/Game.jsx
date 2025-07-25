@@ -415,440 +415,6 @@ const achievements = {
     id: 'scoreAdept',
     name: 'Reality Bender',
     description: 'Reach 1000 points',
-    icon The user is frustrated with the extra text in the code. They want just the code for Game.jsx without the conversational prompts.
-
-I need to provide only the corrected Game.jsx code.
-
-No function calls or render components, just the code.
-
-The system prompt says to use tools if needed, but for this, no tool is needed.
-
-The final response should be the code.
-
-The current question is "why are you including the prompts in the code, just give me the code without all those prompts"
-
-The "prompts" refer to the text like "The user is asking" that was accidentally included in the achievements object.
-
-The response should be the full Game.jsx code without those errors.
-
-I will output the corrected code.```javascript
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { useEffect, useState, useRef, useMemo } from 'react';
-import { useWallet } from "@solana/wallet-adapter-react";
-import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
-import { WalletModalProvider, useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
-import createEdgeClient from "@honeycomb-protocol/edge-client";
-import { sendClientTransactions } from "@honeycomb-protocol/edge-client/client/walletHelpers";
-import { BadgesCondition } from '@honeycomb-protocol/edge-client';
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, get } from "firebase/database";
-import { getAnalytics } from "firebase/analytics";
-import base58 from "bs58";
-import '@solana/wallet-adapter-react-ui/styles.css';
-import moonModel from './assets/makemake_an_artists_interpretation_f4892653.glb';
-import galaxy1 from './assets/inside_galaxy_skybox_hdri_360_panorama_dbec329b.glb';
-import galaxy2 from './assets/space_nebula_hdri_panorama_360_skydome_8bbd7364.glb';
-import galaxy3 from './assets/space_nebula_hdri_panorama_360_skydome (1)_10bfb108.glb';
-import galaxy4 from './assets/billions_stars_skybox_hdri_panorama_94b83198.glb';
-
-const API_URL = "https://edge.test.honeycombprotocol.com/";
-const client = createEdgeClient(API_URL, true);
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBryYJ_BEXB9zuJCRnO1RdDbj1T5piAuKc",
-  authDomain: "astroworld-ac31d.firebaseapp.com",
-  databaseURL: "https://astroworld-ac31d-default-rtdb.firebaseio.com",
-  projectId: "astroworld-ac31d",
-  storageBucket: "astroworld-ac31d.firebasestorage.app",
-  messagingSenderId: "589271153603",
-  appId: "1:589271153603:web:028ab408f1ac3f3bbddb76",
-  measurementId: "G-FYJBPBFM34"
-};
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getDatabase(app);
-
-const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
-const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
-
-function Game() {
-  const [isProfileCreated, setIsProfileCreated] = useState(localStorage.getItem('isProfileCreated') === 'true');
-  const [isInStartScreen, setIsInStartScreen] = useState(false);
-  const [isInGame, setIsInGame] = useState(false);
-  const [gameMode, setGameMode] = useState(null);
-  const wallet = useWallet();
-  const { setVisible } = useWalletModal();
-
-  useEffect(() => {
-    if (wallet.connected) {
-      createUserAndProfile();
-    }
-  }, [wallet.connected]);
-
-  async function createUserAndProfile() {
-    if (isProfileCreated) return;
-    try {
-      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
-        project: PROJECT_ADDRESS,
-        wallet: wallet.publicKey.toString(),
-        payer: wallet.publicKey.toString(),
-        profileIdentity: "main",
-        merkleTree: TREE_ADDRESS,
-        userInfo: {
-          name: "Astroworm Player",
-          bio: "Cosmic Serpent in the Reality Coil",
-          pfp: "https://example.com/default-pfp.png"
-        }
-      });
-      await sendClientTransactions(client, wallet, txResponse);
-
-      // Save profile to Firebase
-      const userId = wallet.publicKey.toString();
-      const userRef = ref(db, 'users/' + userId);
-      await set(userRef, {
-        profileIdentity: "main",
-        userInfo: {
-          name: "Astroworm Player",
-          bio: "Cosmic Serpent in the Reality Coil",
-          pfp: "https://example.com/default-pfp.png"
-        },
-        createdAt: new Date().toISOString(),
-        wallet: userId
-      });
-
-      localStorage.setItem('isProfileCreated', 'true');
-      setIsProfileCreated(true);
-      setIsInStartScreen(true);
-      console.log("User and profile created and saved to Firebase");
-    } catch (error) {
-      console.error('Error creating user and profile:', error);
-      if (error.response) console.error('API response:', error.response.data);
-    }
-  }
-
-  const startGame = (mode) => {
-    setGameMode(mode);
-    setIsInGame(true);
-  };
-
-  useEffect(() => {
-    const globalStyle = document.createElement('style');
-    globalStyle.textContent = `
-      html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        font-family: monospace;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      * {
-        box-sizing: border-box;
-        scrollbar-width: none; /* Firefox */
-      }
-      ::-webkit-scrollbar {
-        display: none; /* Chrome, Safari */
-      }
-      .fade-in {
-        opacity: 0;
-        animation: fadeIn 0.5s ease-in-out forwards;
-      }
-      .fade-out {
-        animation: fadeOut 0.3s ease-in-out forwards;
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
-      }
-      .wallet-adapter-modal-wrapper {
-        z-index: 10001 !important;
-      }
-      .wallet-adapter-modal-overlay {
-        z-index: 10000 !important;
-      }
-      /* Mobile responsive styles */
-      @media (max-width: 768px) {
-        .game-title {
-          font-size: 48px !important;
-        }
-        .menu-button {
-          font-size: 16px !important;
-          padding: 12px 25px !important;
-          min-width: 180px !important;
-        }
-        .menu-button.primary {
-          font-size: 20px !important;
-          padding: 16px 30px !important;
-        }
-        .tutorial-overlay {
-          bottom: 80px !important;
-        }
-        .score-text, .timer-text {
-          font-size: 16px !important;
-        }
-        .game-over-panel, .timed-game-over-panel {
-          width: 90% !important;
-          max-width: 350px !important;
-          padding: 20px !important;
-        }
-        .pause-menu {
-          padding: 20px !important;
-        }
-      }
-      @media (max-width: 480px) {
-        .game-title {
-          font-size: 36px !important;
-          letter-spacing: 4px !important;
-        }
-        .menu-button {
-          font-size: 14px !important;
-          padding: 10px 20px !important;
-          min-width: 160px !important;
-        }
-        .menu-button.primary {
-          font-size: 18px !important;
-          padding: 14px 25px !important;
-        }
-        .game-over-panel, .timed-game-over-panel {
-          width: 95% !important;
-          padding: 15px !important;
-        }
-      }
-    `;
-    document.head.appendChild(globalStyle);
-    return () => document.head.removeChild(globalStyle);
-  }, []);
-
-  const wallets = useMemo(() => [
-    new PhantomWalletAdapter(),
-    new SolflareWalletAdapter(),
-  ], []);
-
-  const content = !wallet.connected || !isProfileCreated ? <ConnectWalletScreen setVisible={setVisible} /> : !isInGame && isInStartScreen ? <StartScreen onStartGame={startGame} wallet={wallet} /> : isInGame ? <GameCanvas mode={gameMode} wallet={wallet} setIsInGame={setIsInGame} setIsInStartScreen={setIsInStartScreen} /> : null;
-
-  return (
-    <ConnectionProvider endpoint="https://rpc.test.honeycombprotocol.com">
-      <WalletProvider wallets={wallets} autoConnect={true}>
-        <WalletModalProvider>
-          <Background />
-          {content}
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
-  );
-}
-
-function Background() {
-  useEffect(() => {
-    const background = document.createElement('div');
-    background.id = 'starry-background';
-    background.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
-      z-index: 0;
-      overflow: hidden;
-    `;
-    const starsContainer = document.createElement('div');
-    starsContainer.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-    `;
-    for (let i = 0; i < 200; i++) {
-      const star = document.createElement('div');
-      const size = Math.random() * 3 + 1;
-      const x = Math.random() * 100;
-      const y = Math.random() * 100;
-      const opacity = Math.random() * 0.8 + 0.2;
-      const animationDelay = Math.random() * 3;
-      const driftDuration = 20 + Math.random() * 40;
-      const driftDelay = Math.random() * 10;
-      const driftAnimation = Math.random() > 0.5 ? 'starDrift' : 'starDriftAlt';
-      star.style.cssText = `
-        position: absolute;
-        left: ${x}%;
-        top: ${y}%;
-        width: ${size}px;
-        height: ${size}px;
-        background: white;
-        border-radius: 50%;
-        opacity: ${opacity};
-        animation: twinkle 3s infinite ease-in-out, ${driftAnimation} ${driftDuration}s infinite linear;
-        animation-delay: ${animationDelay}s, ${driftDelay}s;
-      `;
-      starsContainer.appendChild(star);
-    }
-    background.appendChild(starsContainer);
-    const starStyle = document.createElement('style');
-    starStyle.textContent = `
-      @keyframes twinkle {
-        0%, 100% { opacity: 0.3; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.2); }
-      }
-      @keyframes starDrift {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(-100vw, 50vh); }
-      }
-      @keyframes starDriftAlt {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(100vw, -30vh); }
-      }
-    `;
-    document.head.appendChild(starStyle);
-    document.body.appendChild(background);
-    return () => {
-      document.body.removeChild(background);
-      document.head.removeChild(starStyle);
-    };
-  }, []);
-  return null;
-}
-
-function ConnectWalletScreen({ setVisible }) {
-  const debounce = (func, delay) => {
-    let timeout;
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), delay);
-    };
-  };
-
-  useEffect(() => {
-    const connectScreen = document.createElement('div');
-    connectScreen.id = 'connect-screen';
-    connectScreen.className = 'page-content';
-    connectScreen.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 900;
-      font-family: monospace;
-      color: white;
-      overflow: hidden;
-      opacity: 0;
-    `;
-    connectScreen.classList.add('fade-in');
-    const titleContainer = document.createElement('div');
-    titleContainer.style.cssText = `
-      text-align: center;
-      margin-bottom: 50px;
-      z-index: 2;
-      position: relative;
-    `;
-    const gameTitle = document.createElement('div');
-    gameTitle.className = 'game-title';
-    gameTitle.style.cssText = `
-      font-size: 72px;
-      font-weight: bold;
-      color: #ffffff;
-      letter-spacing: 8px;
-      margin-bottom: 20px;
-    `;
-    gameTitle.textContent = 'ASTROWORM';
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = `
-      font-size: 18px;
-      color: #b0b0b0;
-      opacity: 0.9;
-      letter-spacing: 2px;
-      margin-bottom: 40px;
-    `;
-    subtitle.textContent = 'Connect your wallet to enter the Reality Coil';
-    titleContainer.appendChild(gameTitle);
-    titleContainer.appendChild(subtitle);
-    const connectButton = document.createElement('button');
-    connectButton.style.cssText = `
-      background: #4169e1;
-      color: white;
-      border: 2px solid #4169e1;
-      padding: 20px 40px;
-      font-size: 24px;
-      font-family: monospace;
-      font-weight: bold;
-      borderRadius: 10px;
-      cursor: pointer;
-      letter-spacing: 2px;
-      transition: all 0.3s ease;
-      min-width: 250px;
-      z-index: 2;
-    `;
-    connectButton.textContent = 'CONNECT WALLET';
-    const handleEnter = () => {
-      connectButton.style.transform = 'scale(1.05)';
-      connectButton.style.background = '#5a7dff';
-    };
-    const handleLeave = () => {
-      connectButton.style.transform = 'scale(1)';
-      connectButton.style.background = '#4169e1';
-    };
-    connectButton.addEventListener('mouseenter', handleEnter);
-    connectButton.addEventListener('mouseleave', handleLeave);
-    connectButton.addEventListener('touchstart', handleEnter);
-    connectButton.addEventListener('touchend', handleLeave);
-    connectButton.addEventListener('click', debounce(() => {
-      console.log('Connect button clicked - triggering modal');
-      setVisible(true);
-    }, 300));
-    connectScreen.appendChild(titleContainer);
-    connectScreen.appendChild(connectButton);
-    document.body.appendChild(connectScreen);
-    return () => {
-      document.body.removeChild(connectScreen);
-      connectButton.removeEventListener('mouseenter', handleEnter);
-      connectButton.removeEventListener('mouseleave', handleLeave);
-      connectButton.removeEventListener('touchstart', handleEnter);
-      connectButton.removeEventListener('touchend', handleLeave);
-    };
-  }, [setVisible]);
-  return null;
-}
-
-const achievements = {
-  firstSteps: {
-    id: 'firstSteps',
-    name: 'First Steps',
-    description: 'Play your first game',
-    icon: '🌟',
-    unlocked: false,
-    condition: () => gameState.gamesPlayed >= 1
-  },
-  scoreNovice: {
-    id: 'scoreNovice',
-    name: 'Cosmic Novice',
-    description: 'Reach 250 points',
-    icon: '⭐',
-    unlocked: false,
-    condition: () => gameState.highestScore >= 250
-  },
-  scoreAdept: {
-    id: 'scoreAdept',
-    name: 'Reality Bender',
-    description: 'Reach 1000 points',
     icon: '🌠',
     unlocked: false,
     condition: () => gameState.highestScore >= 1000
@@ -1695,71 +1261,180 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
     `;
     pauseButton.innerHTML = '||';
     document.body.appendChild(pauseButton);
-    const handlePauseClick = () => {
-      if (gameRef.current.gameStarted && gameRef.current.gameRunning) {
-        if (gameRef.current.isPaused) {
-          hidePauseMenu();
-        } else {
-          gameRef.current.isPaused = true;
-          showPauseMenu();
-          if (gameRef.current.gameMode === 'timed' && timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
+    const inputMap = {};
+    async function createPlatform() {
+      const loader = new GLTFLoader();
+      const moonUrl = 'https://cdn.dev.fun/asset/c0e5947aa562d27d5083/makemake_an_artists_interpretation_f4892653.glb';
+      const moonProxyUrl = `https://proxy.dev.fun?url=${encodeURIComponent(moonUrl)}`;
+      try {
+        const moonGltf = await new Promise((resolve, reject) => {
+          loader.load(moonProxyUrl, resolve, undefined, reject);
+        });
+        const platformMesh = moonGltf.scene;
+        const platformRadius = gameState.platform.radius;
+        const boundingBox = new THREE.Box3().setFromObject(platformMesh);
+        const size = boundingBox.getSize(new THREE.Vector3());
+        const maxDimension = Math.max(size.x, size.y, size.z);
+        const scale = platformRadius * 2 / maxDimension;
+        platformMesh.scale.set(scale, scale, scale);
+        platformMesh.position.copy(gameState.platform.center);
+        platformMesh.traverse(child => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material.color = new THREE.Color(0x1a1a1a);
+              child.material.metalness = child.material.metalness !== undefined ? child.material.metalness * 0.01 : 0.005;
+              child.material.roughness = child.material.roughness !== undefined ? Math.max(child.material.roughness, 0.98) : 0.9875;
+              child.material.shadowSide = THREE.DoubleSide;
+              child.material.transparent = false;
+              child.material.alphaTest = 0;
+              child.material.emissive = new THREE.Color(0x000000);
+              child.material.emissiveIntensity = 0;
+              const textureTypes = ['map', 'normalMap', 'roughnessMap'];
+              textureTypes.forEach(textureType => {
+                if (child.material[textureType]) {
+                  const texture = child.material[textureType];
+                  texture.anisotropy = 4;
+                  texture.magFilter = THREE.LinearFilter;
+                  texture.minFilter = THREE.LinearMipmapLinearFilter;
+                  if (textureType === 'map') {
+                    texture.repeat.set(16, 16);
+                  }
+                  texture.generateMipmaps = true;
+                  texture.needsUpdate = true;
+                }
+              });
+              if (child.material.normalMap) {
+                child.material.normalScale.set(2.0, 2.0);
+              }
+              child.material.needsUpdate = true;
+            }
           }
-        }
+        });
+        scene.add(platformMesh);
+        gameState.platform.mesh = platformMesh;
+        const boundaryRadius = gameState.platform.radius + 1.2;
+        const gridGeometry = new THREE.SphereGeometry(boundaryRadius, 32, 16);
+        const gridMaterial = new THREE.MeshBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.3,
+          wireframe: true,
+          blending: THREE.AdditiveBlending
+        });
+        const boundaryGrid = new THREE.Mesh(gridGeometry, gridMaterial);
+        boundaryGrid.position.copy(gameState.platform.center);
+        boundaryGrid.visible = false;
+        scene.add(boundaryGrid);
+        gameState.platform.boundaryGrid = boundaryGrid;
+      } catch (error) {
+        console.warn('Failed to load Makemake model, using default sphere:', error);
+        const geometry = new THREE.SphereGeometry(gameState.platform.radius, 32, 16);
+        const material = new THREE.MeshStandardMaterial({
+          color: 0xB0B0B0,
+          metalness: 0.005,
+          roughness: 0.9875,
+          envMap: scene.background,
+          envMapIntensity: 0.05
+        });
+        const platformMesh = new THREE.Mesh(geometry, material);
+        platformMesh.position.copy(gameState.platform.center);
+        platformMesh.castShadow = true;
+        platformMesh.receiveShadow = true;
+        scene.add(platformMesh);
+        gameState.platform.mesh = platformMesh;
       }
-    };
-    pauseButton.addEventListener('click', handlePauseClick);
-    pauseButton.addEventListener('mouseenter', () => {
-      pauseButton.style.transform = 'translateX(-50%) scale(1.1)';
-      pauseButton.style.color = '#00ffff';
-    });
-    pauseButton.addEventListener('mouseleave', () => {
-      pauseButton.style.transform = 'translateX(-50%) scale(1)';
-      pauseButton.style.color = 'white';
-    });
-    const handleKeyDown = evt => {
-      inputMapRef.current[evt.key] = true;
-      if (evt.key === 'Escape' && gameRef.current.gameStarted && gameRef.current.gameRunning) {
-        handlePauseClick();
-      }
-    };
-    const handleKeyUp = evt => {
-      inputMapRef.current[evt.key] = false;
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
-    mobileControlsRef.current = createMobileControls(inputMapRef);
-    loadAchievements(wallet, gameRef);
-    scoreIntervalRef.current = setInterval(() => {
-      setScore(gameRef.current.score);
-    }, 1000);
-    if (mode === 'timed') {
-      timeIntervalRef.current = setInterval(() => {
-        setTimeRemaining(gameRef.current.timeRemaining);
-      }, 1000);
     }
-    return () => {
-      cancelAnimationFrame(animationFrameId.current);
-      window.removeEventListener('resize', handleResize);
-      renderer.dispose();
-      sceneRef.current.traverse(child => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          child.material.dispose();
-        }
+    let preloadedGameMusic = [];
+    function loadSun() {
+      return new Promise((resolve, reject) => {
+        const loader = new GLTFLoader();
+        const skyboxUrls = [galaxy1, galaxy2, galaxy3, galaxy4];
+        const randomSkyboxUrl = skyboxUrls[Math.floor(Math.random() * skyboxUrls.length)];
+        loader.load(randomSkyboxUrl, gltf => {
+          galaxySkyboxRef.current = gltf.scene;
+          galaxySkyboxRef.current.scale.set(500, 500, 500);
+          galaxySkyboxRef.current.position.set(0, 0, 0);
+          galaxySkyboxRef.current.traverse(child => {
+            if (child.isMesh) {
+              child.material.side = THREE.BackSide;
+              child.material.depthWrite = false;
+              child.renderOrder = -1000;
+              if (child.material.color) {
+                child.material.color.multiplyScalar(0.8);
+              }
+              if (child.material.emissive) {
+                child.material.emissive.multiplyScalar(1.2);
+              }
+              child.material.emissiveIntensity = 0.6;
+            }
+          });
+          sceneRef.current.add(galaxySkyboxRef.current);
+        }, (xhr) => {
+          setProgress(Math.min(100, (xhr.loaded / xhr.total * 100).toFixed(0)));
+        }, error => {
+          console.warn('Failed to load galaxy skybox, using fallback:', error);
+          const starGeometry = new THREE.BufferGeometry();
+          const starMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 2,
+            sizeAttenuation: false
+          });
+          const starVertices = [];
+          for (let i = 0; i < 1000; i++) {
+            const radius = 400;
+            const x = (Math.random() - 0.5) * radius;
+            const y = (Math.random() - 0.5) * radius;
+            const z = (Math.random() - 0.5) * radius;
+            starVertices.push(x, y, z);
+          }
+          starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+          const stars = new THREE.Points(starGeometry, starMaterial);
+          sceneRef.current.add(stars);
+          galaxySkyboxRef.current = stars;
+        });
+        directionalLightRef.current = new THREE.DirectionalLight(0xffffff, 2.0);
+        directionalLightRef.current.position.set(0, 400, 0);
+        directionalLightRef.current.target.position.set(0, 0, 0);
+        directionalLightRef.current.castShadow = true;
+        directionalLightRef.current.shadow.mapSize.width = 1024;
+        directionalLightRef.current.shadow.mapSize.height = 1024;
+        directionalLightRef.current.shadow.camera.near = 50;
+        directionalLightRef.current.shadow.camera.far = 600;
+        directionalLightRef.current.shadow.camera.left = -150;
+        directionalLightRef.current.shadow.camera.right = 150;
+        directionalLightRef.current.shadow.camera.top = 150;
+        directionalLightRef.current.shadow.camera.bottom = -150;
+        directionalLightRef.current.shadow.bias = -0.001;
+        directionalLightRef.current.shadow.normalBias = 0.02;
+        directionalLightRef.current.shadow.radius = 2;
+        directionalLightRef.current.shadow.blurSamples = 8;
+        sceneRef.current.add(directionalLightRef.current);
+        sceneRef.current.add(directionalLightRef.current.target);
+        const sunPosition = new THREE.Vector3(0, 400, 0);
+        const sunGeometry = new THREE.CircleGeometry(7.5, 32);
+        const sunMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.7,
+          side: THREE.DoubleSide
+        });
+        const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+        sunMesh.position.copy(sunPosition);
+        sunMesh.lookAt(cameraRef.current.position);
+        sceneRef.current.add(sunMesh);
+        createPlatform(gameRef, sceneRef.current, loader).then(() => {
+          gameRef.current.food = [];
+          initializeSpheres(gameRef, sceneRef.current);
+          setLoading(false);
+        }).catch(error => {
+          console.error('Error loading game assets:', error);
+          setLoading(false);
+        });
       });
-      document.body.removeChild(renderer.domElement);
-      document.querySelectorAll('.score-text, .timer-text, #pause-button').forEach(el => el.remove());
-      if (mobileControlsRef.current) mobileControlsRef.current.remove();
-      document.head.removeChild(timerStyle);
-      document.head.removeChild(viewportMeta);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('keyup', handleKeyUp);
-      pauseButton.removeEventListener('click', handlePauseClick);
-      if (scoreIntervalRef.current) clearInterval(scoreIntervalRef.current);
-      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
+    loadSun();
   }, []);
 
   useEffect(() => {
@@ -1857,7 +1532,7 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   return loading ? (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%)', color: '#00ffff', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'monospace', zIndex: 10002 }}>
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
-        {/* Add stars loop here, same as in ConnectWalletScreen */}
+        /* Add stars loop here, same as in ConnectWalletScreen */
       </div>
       <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
