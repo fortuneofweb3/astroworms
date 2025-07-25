@@ -407,547 +407,113 @@ const achievements = {
     id: 'scoreNovice',
     name: 'Cosmic Novice',
     description: 'Reach 250 points',
-    icon The user is asking to add the gameplay logic from the provided code to the working login code, and fix the blank page issue after connecting the wallet.
-
-The blank page is likely because after connecting and creating the profile, the start screen is set, but the StartScreen component is not rendering properly or has issues.
-
-The gameplay code is a standalone script that sets up the THREE.js scene, camera, renderer, and game logic, including the animate function that runs the game loop.
-
-To integrate this into the React component, I need to move the gameplay logic into the GameCanvas component's useEffect, where it can run once the game is started.
-
-The full Game.jsx should include:
-
-- The login and profile creation.
-
-- The Background, ConnectWalletScreen, StartScreen components.
-
-- The GameCanvas that now includes the THREE.js setup and game loop.
-
-Also, the placeholders for missing functions are replaced with the actual ones from the gameplay code.
-
-The code has variables like scene, camera, renderer defined globally in the standalone code, so I need to use the refs like sceneRef, cameraRef, rendererRef.
-
-I need to adapt the code accordingly.
-
-The code has document.body.appendChild for UI elements, which can stay as is, since it's DOM manipulation.
-
-The full code will be the merged version.```javascript
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { useEffect, useState, useRef, useMemo } from 'react';
-import { useWallet } from "@solana/wallet-adapter-react";
-import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
-import { WalletModalProvider, useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
-import createEdgeClient from "@honeycomb-protocol/edge-client";
-import { sendClientTransactions } from "@honeycomb-protocol/edge-client/client/walletHelpers";
-import { BadgesCondition } from '@honeycomb-protocol/edge-client';
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, get } from "firebase/database";
-import { getAnalytics } from "firebase/analytics";
-import base58 from "bs58";
-import '@solana/wallet-adapter-react-ui/styles.css';
-import moonModel from './assets/makemake_an_artists_interpretation_f4892653.glb';
-import galaxy1 from './assets/inside_galaxy_skybox_hdri_360_panorama_dbec329b.glb';
-import galaxy2 from './assets/space_nebula_hdri_panorama_360_skydome_8bbd7364.glb';
-import galaxy3 from './assets/space_nebula_hdri_panorama_360_skydome (1)_10bfb108.glb';
-import galaxy4 from './assets/billions_stars_skybox_hdri_panorama_94b83198.glb';
-
-const API_URL = "https://edge.test.honeycombprotocol.com/";
-const client = createEdgeClient(API_URL, true);
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBryYJ_BEXB9zuJCRnO1RdDbj1T5piAuKc",
-  authDomain: "astroworld-ac31d.firebaseapp.com",
-  databaseURL: "https://astroworld-ac31d-default-rtdb.firebaseio.com",
-  projectId: "astroworld-ac31d",
-  storageBucket: "astroworld-ac31d.firebasestorage.app",
-  messagingSenderId: "589271153603",
-  appId: "1:589271153603:web:028ab408f1ac3f3bbddb76",
-  measurementId: "G-FYJBPBFM34"
-};
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getDatabase(app);
-
-const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
-const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
-
-function Game() {
-  const [isProfileCreated, setIsProfileCreated] = useState(localStorage.getItem('isProfileCreated') === 'true');
-  const [isInStartScreen, setIsInStartScreen] = useState(false);
-  const [isInGame, setIsInGame] = useState(false);
-  const [gameMode, setGameMode] = useState(null);
-  const wallet = useWallet();
-  const { setVisible } = useWalletModal();
-
-  useEffect(() => {
-    if (wallet.connected) {
-      createUserAndProfile();
-    }
-  }, [wallet.connected]);
-
-  async function createUserAndProfile() {
-    if (isProfileCreated) return;
-    try {
-      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
-        project: PROJECT_ADDRESS,
-        wallet: wallet.publicKey.toString(),
-        payer: wallet.publicKey.toString(),
-        profileIdentity: "main",
-        merkleTree: TREE_ADDRESS,
-        userInfo: {
-          name: "Astroworm Player",
-          bio: "Cosmic Serpent in the Reality Coil",
-          pfp: "https://example.com/default-pfp.png"
-        }
-      });
-      await sendClientTransactions(client, wallet, txResponse);
-
-      // Save profile to Firebase
-      const userId = wallet.publicKey.toString();
-      const userRef = ref(db, 'users/' + userId);
-      await set(userRef, {
-        profileIdentity: "main",
-        userInfo: {
-          name: "Astroworm Player",
-          bio: "Cosmic Serpent in the Reality Coil",
-          pfp: "https://example.com/default-pfp.png"
-        },
-        createdAt: new Date().toISOString(),
-        wallet: userId
-      });
-
-      localStorage.setItem('isProfileCreated', 'true');
-      setIsProfileCreated(true);
-      setIsInStartScreen(true);
-      console.log("User and profile created and saved to Firebase");
-    } catch (error) {
-      console.error('Error creating user and profile:', error);
-      if (error.response) console.error('API response:', error.response.data);
-    }
-  }
-
-  const startGame = (mode) => {
-    setGameMode(mode);
-    setIsInGame(true);
-  };
-
-  useEffect(() => {
-    const globalStyle = document.createElement('style');
-    globalStyle.textContent = `
-      html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        font-family: monospace;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      * {
-        box-sizing: border-box;
-        scrollbar-width: none; /* Firefox */
-      }
-      ::-webkit-scrollbar {
-        display: none; /* Chrome, Safari */
-      }
-      .fade-in {
-        opacity: 0;
-        animation: fadeIn 0.5s ease-in-out forwards;
-      }
-      .fade-out {
-        animation: fadeOut 0.3s ease-in-out forwards;
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
-      }
-      .wallet-adapter-modal-wrapper {
-        z-index: 10001 !important;
-      }
-      .wallet-adapter-modal-overlay {
-        z-index: 10000 !important;
-      }
-      /* Mobile responsive styles */
-      @media (max-width: 768px) {
-        .game-title {
-          font-size: 48px !important;
-        }
-        .menu-button {
-          font-size: 16px !important;
-          padding: 12px 25px !important;
-          min-width: 180px !important;
-        }
-        .menu-button.primary {
-          font-size: 20px !important;
-          padding: 16px 30px !important;
-        }
-        .tutorial-overlay {
-          bottom: 80px !important;
-        }
-        .score-text, .timer-text {
-          font-size: 16px !important;
-        }
-        .game-over-panel, .timed-game-over-panel {
-          width: 90% !important;
-          max-width: 350px !important;
-          padding: 20px !important;
-        }
-        .pause-menu {
-          padding: 20px !important;
-        }
-      }
-      @media (max-width: 480px) {
-        .game-title {
-          font-size: 36px !important;
-          letter-spacing: 4px !important;
-        }
-        .menu-button {
-          font-size: 14px !important;
-          padding: 10px 20px !important;
-          min-width: 160px !important;
-        }
-        .menu-button.primary {
-          font-size: 18px !important;
-          padding: 14px 25px !important;
-        }
-        .game-over-panel, .timed-game-over-panel {
-          width: 95% !important;
-          padding: 15px !important;
-        }
-      }
-    `;
-    document.head.appendChild(globalStyle);
-    return () => document.head.removeChild(globalStyle);
-  }, []);
-
-  const wallets = useMemo(() => [
-    new PhantomWalletAdapter(),
-    new SolflareWalletAdapter(),
-  ], []);
-
-  const content = !wallet.connected || !isProfileCreated ? <ConnectWalletScreen setVisible={setVisible} /> : !isInGame && isInStartScreen ? <StartScreen onStartGame={startGame} wallet={wallet} /> : isInGame ? <GameCanvas mode={gameMode} wallet={wallet} setIsInGame={setIsInGame} setIsInStartScreen={setIsInStartScreen} /> : null;
-
-  return (
-    <ConnectionProvider endpoint="https://rpc.test.honeycombprotocol.com">
-      <WalletProvider wallets={wallets} autoConnect={true}>
-        <WalletModalProvider>
-          <Background />
-          {content}
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
-  );
-}
-
-function Background() {
-  useEffect(() => {
-    const background = document.createElement('div');
-    background.id = 'starry-background';
-    background.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
-      z-index: 0;
-      overflow: hidden;
-    `;
-    const starsContainer = document.createElement('div');
-    starsContainer.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-    `;
-    for (let i = 0; i < 200; i++) {
-      const star = document.createElement('div');
-      const size = Math.random() * 3 + 1;
-      const x = Math.random() * 100;
-      const y = Math.random() * 100;
-      const opacity = Math.random() * 0.8 + 0.2;
-      const animationDelay = Math.random() * 3;
-      const driftDuration = 20 + Math.random() * 40;
-      const driftDelay = Math.random() * 10;
-      const driftAnimation = Math.random() > 0.5 ? 'starDrift' : 'starDriftAlt';
-      star.style.cssText = `
-        position: absolute;
-        left: ${x}%;
-        top: ${y}%;
-        width: ${size}px;
-        height: ${size}px;
-        background: white;
-        border-radius: 50%;
-        opacity: ${opacity};
-        animation: twinkle 3s infinite ease-in-out, ${driftAnimation} ${driftDuration}s infinite linear;
-        animation-delay: ${animationDelay}s, ${driftDelay}s;
-      `;
-      starsContainer.appendChild(star);
-    }
-    background.appendChild(starsContainer);
-    const starStyle = document.createElement('style');
-    starStyle.textContent = `
-      @keyframes twinkle {
-        0%, 100% { opacity: 0.3; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.2); }
-      }
-      @keyframes starDrift {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(-100vw, 50vh); }
-      }
-      @keyframes starDriftAlt {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(100vw, -30vh); }
-      }
-    `;
-    document.head.appendChild(starStyle);
-    document.body.appendChild(background);
-    return () => {
-      document.body.removeChild(background);
-      document.head.removeChild(starStyle);
-    };
-  }, []);
-  return null;
-}
-
-function ConnectWalletScreen({ setVisible }) {
-  const debounce = (func, delay) => {
-    let timeout;
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), delay);
-    };
-  };
-
-  useEffect(() => {
-    const connectScreen = document.createElement('div');
-    connectScreen.id = 'connect-screen';
-    connectScreen.className = 'page-content';
-    connectScreen.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 900;
-      font-family: monospace;
-      color: white;
-      overflow: hidden;
-      opacity: 0;
-    `;
-    connectScreen.classList.add('fade-in');
-    const titleContainer = document.createElement('div');
-    titleContainer.style.cssText = `
-      text-align: center;
-      margin-bottom: 50px;
-      z-index: 2;
-      position: relative;
-    `;
-    const gameTitle = document.createElement('div');
-    gameTitle.className = 'game-title';
-    gameTitle.style.cssText = `
-      font-size: 72px;
-      font-weight: bold;
-      color: #ffffff;
-      letter-spacing: 8px;
-      margin-bottom: 20px;
-    `;
-    gameTitle.textContent = 'ASTROWORM';
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = `
-      font-size: 18px;
-      color: #b0b0b0;
-      opacity: 0.9;
-      letter-spacing: 2px;
-      margin-bottom: 40px;
-    `;
-    subtitle.textContent = 'Connect your wallet to enter the Reality Coil';
-    titleContainer.appendChild(gameTitle);
-    titleContainer.appendChild(subtitle);
-    const connectButton = document.createElement('button');
-    connectButton.style.cssText = `
-      background: #4169e1;
-      color: white;
-      border: 2px solid #4169e1;
-      padding: 20px 40px;
-      font-size: 24px;
-      font-family: monospace;
-      font-weight: bold;
-      borderRadius: 10px;
-      cursor: pointer;
-      letter-spacing: 2px;
-      transition: all 0.3s ease;
-      min-width: 250px;
-      z-index: 2;
-    `;
-    connectButton.textContent = 'CONNECT WALLET';
-    const handleEnter = () => {
-      connectButton.style.transform = 'scale(1.05)';
-      connectButton.style.background = '#5a7dff';
-    };
-    const handleLeave = () => {
-      connectButton.style.transform = 'scale(1)';
-      connectButton.style.background = '#4169e1';
-    };
-    connectButton.addEventListener('mouseenter', handleEnter);
-    connectButton.addEventListener('mouseleave', handleLeave);
-    connectButton.addEventListener('touchstart', handleEnter);
-    connectButton.addEventListener('touchend', handleLeave);
-    connectButton.addEventListener('click', debounce(() => {
-      console.log('Connect button clicked - triggering modal');
-      setVisible(true);
-    }, 300));
-    connectScreen.appendChild(titleContainer);
-    connectScreen.appendChild(connectButton);
-    document.body.appendChild(connectScreen);
-    return () => {
-      document.body.removeChild(connectScreen);
-      connectButton.removeEventListener('mouseenter', handleEnter);
-      connectButton.removeEventListener('mouseleave', handleLeave);
-      connectButton.removeEventListener('touchstart', handleEnter);
-      connectButton.removeEventListener('touchend', handleLeave);
-    };
-  }, [setVisible]);
-  return null;
-}
-
-const achievements = {
-  firstSteps: {
-    id: 'firstSteps',
-    name: 'First Steps',
-    description: 'Play your first game',
-    icon: '',
+    icon: '⭐',
     unlocked: false,
-    condition: (gamesPlayed) => gamesPlayed >= 1
-  },
-  scoreNovice: {
-    id: 'scoreNovice',
-    name: 'Cosmic Novice',
-    description: 'Reach 250 points',
-    icon: '',
-    unlocked: false,
-    condition: (highestScore) => highestScore >= 250
+    condition: () => gameState.highestScore >= 250
   },
   scoreAdept: {
     id: 'scoreAdept',
     name: 'Reality Bender',
     description: 'Reach 1000 points',
-    icon: '',
+    icon: '🌠',
     unlocked: false,
-    condition: (highestScore) => highestScore >= 1000
+    condition: () => gameState.highestScore >= 1000
   },
   scoreMaster: {
     id: 'scoreMaster',
     name: 'Coil Master',
     description: 'Reach 2500 points',
-    icon: '',
+    icon: '💫',
     unlocked: false,
-    condition: (highestScore) => highestScore >= 2500
+    condition: () => gameState.highestScore >= 2500
   },
   lengthGrower: {
     id: 'lengthGrower',
     name: 'Growing Serpent',
     description: 'Reach 30 segments',
-    icon: '',
+    icon: '🐍',
     unlocked: false,
-    condition: (longestSnake) => longestSnake >= 30
+    condition: () => gameState.longestSnake >= 30
   },
   lengthTitan: {
     id: 'lengthTitan',
     name: 'Cosmic Titan',
     description: 'Reach 75 segments',
-    icon: '',
+    icon: '🐉',
     unlocked: false,
-    condition: (longestSnake) => longestSnake >= 75
+    condition: () => gameState.longestSnake >= 75
   },
   speedDemon: {
     id: 'speedDemon',
     name: 'Speed Demon',
     description: 'Complete a timed game with 30+ seconds left',
-    icon: '',
+    icon: '⚡',
     unlocked: false,
-    condition: (timeRemaining, score, gameMode) => gameMode === 'timed' && timeRemaining >= 30 && score >= 100
+    condition: () => false
   },
   survivor: {
     id: 'survivor',
     name: 'Dimensional Survivor',
     description: 'Survive for 5 minutes in one game',
-    icon: '',
+    icon: '🛡️',
     unlocked: false,
-    condition: (elapsedTime) => elapsedTime >= 300000 // 5 minutes in ms
+    condition: () => false
   },
   glutton: {
     id: 'glutton',
     name: 'Cosmic Glutton',
     description: 'Eat 250 cosmic fragments total',
-    icon: '',
+    icon: '🍎',
     unlocked: false,
-    condition: (spheresEaten) => spheresEaten >= 250
+    condition: () => gameState.spheresEaten >= 250
   },
   collector: {
     id: 'collector',
     name: 'Fragment Collector',
     description: 'Eat 1000 cosmic fragments total',
-    icon: '',
+    icon: '💎',
     unlocked: false,
-    condition: (spheresEaten) => spheresEaten >= 1000
+    condition: () => gameState.spheresEaten >= 1000
   },
   veteran: {
     id: 'veteran',
     name: 'Coil Veteran',
     description: 'Play 25 games',
-    icon: '',
+    icon: '🏆',
     unlocked: false,
-    condition: (gamesPlayed) => gamesPlayed >= 25
+    condition: () => gameState.gamesPlayed >= 25
   },
   timeAttacker: {
     id: 'timeAttacker',
     name: 'Time Attacker',
     description: 'Score 500+ in timed mode',
-    icon: '',
+    icon: '⏰',
     unlocked: false,
-    condition: (bestTimedScore) => bestTimedScore >= 500
+    condition: () => gameState.bestTimedScore >= 500
   },
   perfectionist: {
     id: 'perfectionist',
     name: 'Reality Perfectionist',
     description: 'Score 5000+ points',
-    icon: '',
+    icon: '🔥',
     unlocked: false,
-    condition: (highestScore) => highestScore >= 5000
+    condition: () => gameState.highestScore >= 5000
   },
   leviathan: {
     id: 'leviathan',
     name: 'Cosmic Leviathan',
     description: 'Reach 150 segments',
-    icon: '',
+    icon: '🌌',
     unlocked: false,
-    condition: (longestSnake) => longestSnake >= 150
+    condition: () => gameState.longestSnake >= 150
   },
   dedication: {
     id: 'dedication',
     name: 'Dimensional Dedication',
     description: 'Play for 120 minutes total',
-    icon: '',
+    icon: '⌛',
     unlocked: false,
-    condition: (totalPlayTime) => totalPlayTime >= 7200000 // 120 min in ms
+    condition: () => gameState.totalPlayTime >= 7200000
   }
 };
 
@@ -1566,829 +1132,595 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   const timeIntervalRef = useRef(null);
 
   async function loadAchievements(wallet, gameRef) {
-
-const userId = wallet.publicKey.toString();
-
-const statsRef = ref(db, 'users/' + userId + '/stats');
-
-const snapshot = await get(statsRef);
-
-if (snapshot.exists()) {
-
-const data = snapshot.val();
-
-gameRef.current.gamesPlayed = data.gamesPlayed || 0;
-
-gameRef.current.highestScore = data.highestScore || 0;
-
-gameRef.current.longestSnake = data.longestSnake || 0;
-
-gameRef.current.spheresEaten = data.spheresEaten || 0;
-
-gameRef.current.totalPlayTime = data.totalPlayTime || 0;
-
-gameRef.current.bestTimedScore = data.bestTimedScore || 0;
-
-Object.keys(achievements).forEach(key => {
-
-achievements[key].unlocked = data.achievements?.[key] || false;
-
-});
-
-}
-
-}
-
-async function saveAchievements(wallet, gameRef) {
-
-const userId = wallet.publicKey.toString();
-
-const statsRef = ref(db, 'users/' + userId + '/stats');
-
-const data = {
-
-gamesPlayed: gameRef.current.gamesPlayed,
-
-highestScore: gameRef.current.highestScore,
-
-longestSnake: gameRef.current.longestSnake,
-
-spheresEaten: gameRef.current.spheresEaten,
-
-totalPlayTime: gameRef.current.totalPlayTime,
-
-bestTimedScore: gameRef.current.bestTimedScore,
-
-achievements: {}
-
-};
-
-Object.keys(achievements).forEach(key => {
-
-data.achievements[key] = achievements[key].unlocked;
-
-});
-
-await set(statsRef, data);
-
-}
-
-useEffect(() => {
-
-const renderer = rendererRef.current;
-
-renderer.setSize(window.innerWidth, window.innerHeight);
-
-renderer.shadowMap.enabled = true;
-
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-renderer.shadowMap.autoUpdate = true;
-
-renderer.physicallyCorrectLights = false;
-
-renderer.toneMappingExposure = 0.8;
-
-document.body.appendChild(renderer.domElement);
-
-renderer.domElement.style.position = `absolute`;
-
-renderer.domElement.style.top = `0`;
-
-renderer.domElement.style.left = `0`;
-
-renderer.domElement.style.zIndex = `-1`;
-
-const globalStyle = document.createElement('style');
-
-globalStyle.textContent = `
-
-html, body {
-
-margin: 0;
-
-padding: 0;
-
-width: 100%;
-
-height: 100%;
-
-overflow: hidden;
-
-font-family: monospace;
-
- -webkit-user-select: none;
-
- -moz-user-select: none;
-
- -ms-user-select: none;
-
- user-select: none;
-
- -webkit-touch-callout: none;
-
- -webkit-tap-highlight-color: transparent;
-
-}
-
-* {
-
-box-sizing: border-box;
-
-scrollbar-width: none; /* Firefox */
-
-}
-
-::-webkit-scrollbar {
-
-display: none; /* Chrome, Safari */
-
-}
-
-.fade-in {
-
-opacity: 0;
-
-animation: fadeIn 0.5s ease-in-out forwards;
-
-}
-
-.fade-out {
-
-animation: fadeOut 0.3s ease-in-out forwards;
-
-}
-
-@keyframes fadeIn {
-
-from { opacity: 0; }
-
-to { opacity: 1; }
-
-}
-
-@keyframes fadeOut {
-
-from { opacity: 1; }
-
-to { opacity: 0; }
-
-}
-
-/* Mobile responsive styles */
-
-@media (max-width: 768px) {
-
-.mobile-controls {
-
-display: flex !important;
-
-}
-
-/* Adjust UI elements for mobile */
-
-.game-title {
-
-font-size: 48px !important;
-
-}
-
-.menu-button {
-
-font-size: 16px !important;
-
-padding: 12px 25px !important;
-
-min-width: 180px !important;
-
-}
-
-.menu-button.primary {
-
-font-size: 20px !important;
-
-padding: 16px 30px !important;
-
-}
-
-.tutorial-overlay {
-
-bottom: 80px !important;
-
-}
-
-.score-text, .timer-text {
-
-font-size: 16px !important;
-
-}
-
-.game-over-panel, .timed-game-over-panel {
-
-width: 90% !important;
-
-max-width: 350px !important;
-
-padding: 20px !important;
-
-}
-
-.pause-menu {
-
-padding: 20px !important;
-
-}
-
-}
-
-@media (max-width: 480px) {
-
-.game-title {
-
-font-size: 36px !important;
-
-letter-spacing: 4px !important;
-
-}
-
-.menu-button {
-
-font-size: 14px !important;
-
-padding: 10px 20px !important;
-
-min-width: 160px !important;
-
-}
-
-.menu-button.primary {
-
-font-size: 18px !important;
-
-padding: 14px 25px !important;
-
-}
-
-.game-over-panel, .timed-game-over-panel {
-
-width: 95% !important;
-
-padding: 15px !important;
-
-}
-
-}
-
-`;
-
-document.head.appendChild(globalStyle);
-
-const viewportMeta = document.createElement('meta');
-
-viewportMeta.name = 'viewport';
-
-viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-
-document.head.appendChild(viewportMeta);
-
-window.addEventListener(`resize`, () => {
-
-cameraRef.current.aspect = window.innerWidth / window.innerHeight;
-
-cameraRef.current.updateProjectionMatrix();
-
-renderer.setSize(window.innerWidth, window.innerHeight);
-
-});
-
-sceneRef.current.background = new THREE.Color(0x000000);
-
-loadSun().then(() => {
-
-setLoading(false);
-
-}).catch(error => {
-
-console.error('Error loading game assets:', error);
-
-setLoading(false);
-
-});
-
-const scoreText = document.createElement(`div`);
-
-scoreText.className = 'score-text';
-
-scoreText.style.cssText = `
-
-position: absolute;
-
-top: 20px;
-
-left: 20px;
-
-color: white;
-
-font-size: 20px;
-
-font-family: monospace;
-
-font-weight: bold;
-
-text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-
-z-index: 1000;
-
-`;
-
-scoreText.textContent = `Score: 0`;
-
-document.body.appendChild(scoreText);
-
-const timerText = document.createElement(`div`);
-
-timerText.id = 'timer-display';
-
-timerText.className = 'timer-text';
-
-timerText.style.cssText = `
-
-position: absolute;
-
-top: 20px;
-
-right: 20px;
-
-color: #ffff00;
-
-font-size: 20px;
-
-font-family: monospace;
-
-font-weight: bold;
-
-text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-
-z-index: 1000;
-
-display: none;
-
-`;
-
-timerText.textContent = `Time: 1:00`;
-
-document.body.appendChild(timerText);
-
-const timerStyle = document.createElement(`style`);
-
-timerStyle.textContent = `
-
-@keyframes timerPulse {
-
-0%, 100% { transform: scale(1); }
-
-50% { transform: scale(1.1); }
-
-}
-
-`;
-
-document.head.appendChild(timerStyle);
-
-const pauseButton = document.createElement(`div`);
-
-pauseButton.id = 'pause-button';
-
-pauseButton.style.cssText = `
-
-position: absolute;
-
-top: 20px;
-
-left: 50%;
-
-transform: translateX(-50%);
-
-width: auto;
-
-height: auto;
-
-padding: 8px 12px;
-
-color: white;
-
-font-size: 28px;
-
-font-weight: bold;
-
-font-family: monospace;
-
-cursor: pointer;
-
-user-select: none;
-
-display: none;
-
-justify-content: center;
-
-align-items: center;
-
-transition: all 0.2s ease;
-
-text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-
-z-index: 1000;
-
-`;
-
-pauseButton.innerHTML = '||';
-
-document.body.appendChild(pauseButton);
-
-const handlePauseClick = () => {
-
-if (gameRef.current.gameStarted && gameRef.current.gameRunning) {
-
-if (gameRef.current.isPaused) {
-
-hidePauseMenu();
-
-} else {
-
-gameRef.current.isPaused = true;
-
-showPauseMenu();
-
-if (gameRef.current.gameMode === 'timed' && timerIntervalRef.current) {
-
-clearInterval(timerIntervalRef.current);
-
-}
-
-}
-
-}
-
-};
-
-pauseButton.addEventListener('click', handlePauseClick);
-
-pauseButton.addEventListener('mouseenter', () => {
-
-pauseButton.style.transform = 'translateX(-50%) scale(1.1)';
-
-pauseButton.style.color = '#00ffff';
-
-});
-
-pauseButton.addEventListener('mouseleave', () => {
-
-pauseButton.style.transform = 'translateX(-50%) scale(1)';
-
-pauseButton.style.color = 'white';
-
-});
-
-const handleKeyDown = evt => {
-
-inputMapRef.current[evt.key] = true;
-
-if (evt.key === 'Escape' && gameRef.current.gameStarted && gameRef.current.gameRunning) {
-
-handlePauseClick();
-
-}
-
-};
-
-const handleKeyUp = evt => {
-
-inputMapRef.current[evt.key] = false;
-
-};
-
-document.addEventListener('keydown', handleKeyDown);
-
-document.addEventListener('keyup', handleKeyUp);
-
-mobileControlsRef.current = createMobileControls(inputMapRef);
-
-loadAchievements(wallet, gameRef);
-
-scoreIntervalRef.current = setInterval(() => {
-
-setScore(gameRef.current.score);
-
-}, 1000);
-
-if (mode === 'timed') {
-
-timeIntervalRef.current = setInterval(() => {
-
-setTimeRemaining(gameRef.current.timeRemaining);
-
-}, 1000);
-
-}
-
-return () => {
-
-cancelAnimationFrame(animationFrameId.current);
-
-window.removeEventListener('resize', handleResize);
-
-renderer.dispose();
-
-sceneRef.current.traverse(child => {
-
-if (child instanceof THREE.Mesh) {
-
-child.geometry.dispose();
-
-child.material.dispose();
-
-}
-
-});
-
-document.body.removeChild(renderer.domElement);
-
-document.querySelectorAll('.score-text, .timer-text, #pause-button').forEach(el => el.remove());
-
-if (mobileControlsRef.current) mobileControlsRef.current.remove();
-
-document.head.removeChild(timerStyle);
-
-document.head.removeChild(viewportMeta);
-
-document.removeEventListener('keydown', handleKeyDown);
-
-document.removeEventListener('keyup', handleKeyUp);
-
-pauseButton.removeEventListener('click', handlePauseClick);
-
-if (scoreIntervalRef.current) clearInterval(scoreIntervalRef.current);
-
-if (timeIntervalRef.current) clearInterval(timeIntervalRef.current);
-
-if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-};
-
-}, []);
-
-useEffect(() => {
-
-if (!loading) {
-
-gameRef.current.gameRunning = true;
-
-gameRef.current.gameStarted = true;
-
-gameRef.current.originalSnakeSpeed = gameRef.current.gameMode === 'timed' ? 0.0607500 * 1.5 : 0.0607500;
-
-gameRef.current.snakeSpeed = gameRef.current.originalSnakeSpeed;
-
-gameRef.current.gamesPlayed += 1;
-
-gameRef.current.gameStartTime = Date.now();
-
-initializeSnake(gameRef, sceneRef.current);
-
-initializeAiSnakes(gameRef, sceneRef.current);
-
-const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-
-if (mobileControlsRef.current) {
-
-mobileControlsRef.current.style.display = isTouchDevice ? 'flex' : 'none';
-
-}
-
-document.getElementById('pause-button').style.display = 'block';
-
-if (gameRef.current.gameMode === 'timed') {
-
-startTimer(gameRef, timerIntervalRef);
-
-if (!isTouchDevice) showTimedTutorial();
-
-} else {
-
-if (!isTouchDevice) showTutorial();
-
-}
-
-checkAchievements(gameRef);
-
-saveAchievements(wallet, gameRef);
-
-animate(gameRef, sceneRef, cameraRef, rendererRef, inputMapRef, directionalLightRef, galaxySkyboxRef, animationFrameId, wallet, setIsInGame, setIsInStartScreen);
-
-}
-
-}, [loading]);
-
-async function loadSun() {
-
-const loader = new GLTFLoader();
-
-const skyboxUrls = [galaxy1, galaxy2, galaxy3, galaxy4];
-
-const randomSkyboxUrl = skyboxUrls[Math.floor(Math.random() * skyboxUrls.length)];
-
-try {
-
-const galaxyGltf = await new Promise((resolve, reject) => {
-
-loader.load(randomSkyboxUrl, resolve, (xhr) => {
-
-setProgress(Math.min(100, (xhr.loaded / xhr.total * 100).toFixed(0)));
-
-}, reject);
-
-});
-
-galaxySkyboxRef.current = galaxyGltf.scene;
-
-galaxySkyboxRef.current.scale.set(500, 500, 500);
-
-galaxySkyboxRef.current.position.set(0, 0, 0);
-
-galaxySkyboxRef.current.traverse(child => {
-
-if (child.isMesh) {
-
-child.material.side = THREE.BackSide;
-
-child.material.depthWrite = false;
-
-child.renderOrder = -1000;
-
-if (child.material.color) {
-
-child.material.color.multiplyScalar(0.8);
-
-}
-
-if (child.material.emissive) {
-
-child.material.emissive.multiplyScalar(1.2);
-
-}
-
-child.material.emissiveIntensity = 0.6;
-
-}
-
-});
-
-sceneRef.current.add(galaxySkyboxRef.current);
-
-} catch (error) {
-
-console.warn('Failed to load galaxy skybox, using fallback:', error);
-
-const starGeometry = new THREE.BufferGeometry();
-
-const starMaterial = new THREE.PointsMaterial({
-
-color: 0xffffff,
-
-size: 2,
-
-sizeAttenuation: false
-
-});
-
-const starVertices = [];
-
-for (let i = 0; i < 1000; i++) {
-
-const radius = 400;
-
-const x = (Math.random() - 0.5) * radius;
-
-const y = (Math.random() - 0.5) * radius;
-
-const z = (Math.random() - 0.5) * radius;
-
-starVertices.push(x, y, z);
-
-}
-
-starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-
-const stars = new THREE.Points(starGeometry, starMaterial);
-
-sceneRef.current.add(stars);
-
-galaxySkyboxRef.current = stars;
-
-}
-
-directionalLightRef.current = new THREE.DirectionalLight(0xffffff, 2.0);
-
-directionalLightRef.current.position.set(0, 400, 0);
-
-directionalLightRef.current.target.position.set(0, 0, 0);
-
-directionalLightRef.current.castShadow = true;
-
-directionalLightRef.current.shadow.mapSize.width = 1024;
-
-directionalLightRef.current.shadow.mapSize.height = 1024;
-
-directionalLightRef.current.shadow.camera.near = 50;
-
-directionalLightRef.current.shadow.camera.far = 600;
-
-directionalLightRef.current.shadow.camera.left = -150;
-
-directionalLightRef.current.shadow.camera.right = 150;
-
-directionalLightRef.current.shadow.camera.top = 150;
-
-directionalLightRef.current.shadow.camera.bottom = -150;
-
-directionalLightRef.current.shadow.bias = -0.001;
-
-directionalLightRef.current.shadow.normalBias = 0.02;
-
-directionalLightRef.current.shadow.radius = 2;
-
-directionalLightRef.current.shadow.blurSamples = 8;
-
-sceneRef.current.add(directionalLightRef.current);
-
-sceneRef.current.add(directionalLightRef.current.target);
-
-const sunPosition = new THREE.Vector3(0, 400, 0);
-
-const sunGeometry = new THREE.CircleGeometry(7.5, 32);
-
-const sunMaterial = new THREE.MeshBasicMaterial({
-
-color: 0xffffff,
-
-transparent: true,
-
-opacity: 0.7,
-
-side: THREE.DoubleSide
-
-});
-
-const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-
-sunMesh.position.copy(sunPosition);
-
-sunMesh.lookAt(cameraRef.current.position);
-
-sceneRef.current.add(sunMesh);
-
-await createPlatform(gameRef, sceneRef.current, loader);
-
-initializeSpheres(gameRef, sceneRef.current);
-
-}
-
-return loading ? (
-
-<div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%)', color: '#00ffff', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'monospace', zIndex: 10002 }}>
-
-<div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
-
-{/* Add stars loop here, same as in ConnectWalletScreen */}
-
-</div>
-
-<div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
-
-<div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
-
-<div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
-
-<div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
-
-</div>
-
-<div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px', zIndex: 2 }}>{progress}%</div>
-
-</div>
-
-) : (
-
-<div>
-
-<div className="score-text">Score: {score}</div>
-
-{gameRef.current.gameMode === 'timed' && <div className="timer-text">Time: {Math.floor(timeRemaining / 60)}:{timeRemaining % 60 < 10 ? '0' : ''}{timeRemaining % 60}</div>}
-
-</div>
-
-);
-
+    const userId = wallet.publicKey.toString();
+    const statsRef = ref(db, 'users/' + userId + '/stats');
+    const snapshot = await get(statsRef);
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      gameRef.current.gamesPlayed = data.gamesPlayed || 0;
+      gameRef.current.highestScore = data.highestScore || 0;
+      gameRef.current.longestSnake = data.longestSnake || 0;
+      gameRef.current.spheresEaten = data.spheresEaten || 0;
+      gameRef.current.totalPlayTime = data.totalPlayTime || 0;
+      gameRef.current.bestTimedScore = data.bestTimedScore || 0;
+      Object.keys(achievements).forEach(key => {
+        achievements[key].unlocked = data.achievements?.[key] || false;
+      });
+    }
+  }
+
+  async function saveAchievements(wallet, gameRef) {
+    const userId = wallet.publicKey.toString();
+    const statsRef = ref(db, 'users/' + userId + '/stats');
+    const data = {
+      gamesPlayed: gameRef.current.gamesPlayed,
+      highestScore: gameRef.current.highestScore,
+      longestSnake: gameRef.current.longestSnake,
+      spheresEaten: gameRef.current.spheresEaten,
+      totalPlayTime: gameRef.current.totalPlayTime,
+      bestTimedScore: gameRef.current.bestTimedScore,
+      achievements: {}
+    };
+    Object.keys(achievements).forEach(key => {
+      data.achievements[key] = achievements[key].unlocked;
+    });
+    await set(statsRef, data);
+  }
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = true;
+    renderer.physicallyCorrectLights = false;
+    renderer.toneMappingExposure = 0.8;
+    document.body.appendChild(renderer.domElement);
+    renderer.domElement.style.position = `absolute`;
+    renderer.domElement.style.top = `0`;
+    renderer.domElement.style.left = `0`;
+    renderer.domElement.style.zIndex = `-1`;
+    const globalStyle = document.createElement('style');
+    globalStyle.textContent = `
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: monospace;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      * {
+        box-sizing: border-box;
+        scrollbar-width: none; /* Firefox */
+      }
+      ::-webkit-scrollbar {
+        display: none; /* Chrome, Safari */
+      }
+      .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.5s ease-in-out forwards;
+      }
+      .fade-out {
+        animation: fadeOut 0.3s ease-in-out forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      .wallet-adapter-modal-wrapper {
+        z-index: 10001 !important;
+      }
+      .wallet-adapter-modal-overlay {
+        z-index: 10000 !important;
+      }
+      /* Mobile responsive styles */
+      @media (max-width: 768px) {
+        .mobile-controls {
+          display: flex !important;
+        }
+        /* Adjust UI elements for mobile */
+        .game-title {
+          font-size: 48px !important;
+        }
+        .menu-button {
+          font-size: 16px !important;
+          padding: 12px 25px !important;
+          min-width: 180px !important;
+        }
+        .menu-button.primary {
+          font-size: 20px !important;
+          padding: 16px 30px !important;
+        }
+        .tutorial-overlay {
+          bottom: 80px !important;
+        }
+        .score-text, .timer-text {
+          font-size: 16px !important;
+        }
+        .game-over-panel, .timed-game-over-panel {
+          width: 90% !important;
+          max-width: 350px !important;
+          padding: 20px !important;
+        }
+        .pause-menu {
+          padding: 20px !important;
+        }
+      }
+      @media (max-width: 480px) {
+        .game-title {
+          font-size: 36px !important;
+          letter-spacing: 4px !important;
+        }
+        .menu-button {
+          font-size: 14px !important;
+          padding: 10px 20px !important;
+          min-width: 160px !important;
+        }
+        .menu-button.primary {
+          font-size: 18px !important;
+          padding: 14px 25px !important;
+        }
+        .game-over-panel, .timed-game-over-panel {
+          width: 95% !important;
+          padding: 15px !important;
+        }
+      }
+    `;
+    document.head.appendChild(globalStyle);
+    const viewportMeta = document.createElement('meta');
+    viewportMeta.name = 'viewport';
+    viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.head.appendChild(viewportMeta);
+    window.addEventListener(`resize`, () => {
+      cameraRef.current.aspect = window.innerWidth / window.innerHeight;
+      cameraRef.current.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    sceneRef.current.background = new THREE.Color(0x000000);
+    loadSun().then(() => {
+      setLoading(false);
+    }).catch(error => {
+      console.error('Error loading game assets:', error);
+      setLoading(false);
+    });
+    const scoreText = document.createElement(`div`);
+    scoreText.className = 'score-text';
+    scoreText.style.cssText = `
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-size: 20px;
+      font-family: monospace;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+    `;
+    scoreText.textContent = `Score: 0`;
+    document.body.appendChild(scoreText);
+    const timerText = document.createElement(`div`);
+    timerText.id = 'timer-display';
+    timerText.className = 'timer-text';
+    timerText.style.cssText = `
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #ffff00;
+      font-size: 20px;
+      font-family: monospace;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      display: none;
+    `;
+    timerText.textContent = `Time: 1:00`;
+    document.body.appendChild(timerText);
+    const timerStyle = document.createElement(`style`);
+    timerStyle.textContent = `
+      @keyframes timerPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+    `;
+    document.head.appendChild(timerStyle);
+    const pauseButton = document.createElement(`div`);
+    pauseButton.id = 'pause-button';
+    pauseButton.style.cssText = `
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: auto;
+      height: auto;
+      padding: 8px 12px;
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      font-family: monospace;
+      cursor: pointer;
+      user-select: none;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.2s ease;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+    `;
+    pauseButton.innerHTML = '||';
+    document.body.appendChild(pauseButton);
+    const inputMap = {};
+    document.addEventListener(`keydown`, evt => {
+      inputMap[evt.key] = true;
+      if (evt.key === 'Escape' && gameState.gameStarted && gameState.gameRunning) {
+        if (gameState.isPaused) {
+          hidePauseMenu();
+        } else {
+          gameState.isPaused = true;
+          showPauseMenu();
+        }
+      }
+    });
+    document.addEventListener(`keyup`, evt => {
+      inputMap[evt.key] = false;
+    });
+    pauseButton.addEventListener('click', () => {
+      if (gameState.gameStarted && gameState.gameRunning) {
+        if (gameState.isPaused) {
+          hidePauseMenu();
+        } else {
+          gameState.isPaused = true;
+          showPauseMenu();
+        }
+      }
+    });
+    pauseButton.addEventListener('mouseenter', () => {
+      pauseButton.style.transform = 'translateX(-50%) scale(1.1)';
+      pauseButton.style.color = '#00ffff';
+    });
+    pauseButton.addEventListener('mouseleave', () => {
+      pauseButton.style.transform = 'translateX(-50%) scale(1)';
+      pauseButton.style.color = 'white';
+    });
+    function createMobileControls() {
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      if (!isTouchDevice) return;
+      const mobileControlsContainer = document.createElement('div');
+      mobileControlsContainer.id = 'mobile-controls';
+      mobileControlsContainer.className = 'mobile-controls';
+      mobileControlsContainer.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        gap: 60px;
+        z-index: 9000;
+        pointer-events: auto;
+      `;
+      const leftButton = document.createElement('button');
+      leftButton.innerHTML = '◀';
+      leftButton.style.cssText = `
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: rgba(65, 105, 225, 0.8);
+        border: 3px solid #00ffff;
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+      `;
+      const rightButton = document.createElement('button');
+      rightButton.innerHTML = '▶';
+      rightButton.style.cssText = `
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: rgba(65, 105, 225, 0.8);
+        border: 3px solid #00ffff;
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
+      `;
+      function handleTouchStart(direction) {
+        return evt => {
+          evt.preventDefault();
+          inputMap[direction] = true;
+          const button = evt.target;
+          button.style.transform = 'scale(0.9)';
+          button.style.background = 'rgba(90, 125, 255, 0.9)';
+          button.style.boxShadow = '0 2px 8px rgba(0, 255, 255, 0.5)';
+        };
+      }
+      function handleTouchEnd(direction) {
+        return evt => {
+          evt.preventDefault();
+          inputMap[direction] = false;
+          const button = evt.target;
+          button.style.transform = 'scale(1)';
+          button.style.background = 'rgba(65, 105, 225, 0.8)';
+          button.style.boxShadow = '0 4px 15px rgba(0, 255, 255, 0.3)';
+        };
+      }
+      leftButton.addEventListener('touchstart', handleTouchStart('a'), {
+        passive: false
+      });
+      leftButton.addEventListener('touchend', handleTouchEnd('a'), {
+        passive: false
+      });
+      leftButton.addEventListener('touchcancel', handleTouchEnd('a'), {
+        passive: false
+      });
+      rightButton.addEventListener('touchstart', handleTouchStart('d'), {
+        passive: false
+      });
+      rightButton.addEventListener('touchend', handleTouchEnd('d'), {
+        passive: false
+      });
+      rightButton.addEventListener('touchcancel', handleTouchEnd('d'), {
+        passive: false
+      });
+      leftButton.addEventListener('contextmenu', e => e.preventDefault());
+      rightButton.addEventListener('contextmenu', e => e.preventDefault());
+      mobileControlsContainer.appendChild(leftButton);
+      mobileControlsContainer.appendChild(rightButton);
+      document.body.appendChild(mobileControlsContainer);
+      return mobileControlsContainer;
+    }
+    mobileControls = createMobileControls();
+    pauseButton.addEventListener('click', () => {
+      if (gameState.gameStarted && gameState.gameRunning) {
+        if (gameState.isPaused) {
+          hidePauseMenu();
+        } else {
+          gameState.isPaused = true;
+          showPauseMenu();
+        }
+      }
+    });
+    pauseButton.addEventListener('mouseenter', () => {
+      pauseButton.style.transform = 'translateX(-50%) scale(1.1)';
+      pauseButton.style.color = '#00ffff';
+    });
+    pauseButton.addEventListener('mouseleave', () => {
+      pauseButton.style.transform = 'translateX(-50%) scale(1)';
+      pauseButton.style.color = 'white';
+    });
+    document.addEventListener(`keydown`, evt => {
+      inputMap[evt.key] = true;
+      if (evt.key === 'Escape' && gameState.gameStarted && gameState.gameRunning) {
+        if (gameState.isPaused) {
+          hidePauseMenu();
+        } else {
+          gameState.isPaused = true;
+          showPauseMenu();
+        }
+      }
+    });
+    document.addEventListener(`keyup`, evt => {
+      inputMap[evt.key] = false;
+    });
+    function animate() {
+      requestAnimationFrame(animate);
+      try {
+        gameState.frameCount++;
+        if (!gameState.gameStarted || !gameState.gameRunning) {
+          renderer.render(sceneRef.current, cameraRef.current);
+          return;
+        }
+        const head = gameState.snakeSegments[0];
+        if (!head || !head.position) return;
+        if (gameState.isPaused) {
+          gameState.pauseTransition = Math.min(1, gameState.pauseTransition + 0.05);
+        } else {
+          gameState.pauseTransition = Math.max(0, gameState.pauseTransition - 0.05);
+        }
+        const speedMultiplier = 1 - gameState.pauseTransition * 0.95;
+        gameState.snakeSpeed = gameState.originalSnakeSpeed * speedMultiplier;
+        if (gameState.pauseTransition < 0.99) {
+          if (inputMap['a'] || inputMap['A'] || inputMap['ArrowLeft']) {
+            const turnSpeed = 0.03 * speedMultiplier;
+            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(gameState.snakeUp, turnSpeed);
+            gameState.snakeDirection.applyQuaternion(yawQuaternion).normalize();
+          }
+          if (inputMap['d'] || inputMap['D'] || inputMap['ArrowRight']) {
+            const turnSpeed = 0.03 * speedMultiplier;
+            const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(gameState.snakeUp, -turnSpeed);
+            gameState.snakeDirection.applyQuaternion(yawQuaternion).normalize();
+          }
+        }
+        if (gameState.pauseTransition < 0.99) {
+          updateSnake();
+          processGrowth();
+          if (gameState.invincibilityTime > 0) {
+            gameState.invincibilityTime--;
+          }
+          if (gameState.frameCount % 5 === 0 && checkSelfCollision()) {
+            if (gameState.gameMode === 'timed') {
+              showTimedGameOver();
+            } else {
+              gameOver();
+            }
+            return;
+          }
+          if (gameState.frameCount % 2 === 0) {
+            applyMagneticEffect();
+            checkSphereCollisions();
+          }
+          if (gameState.frameCount % 2 === 0) {
+            gameState.aiSnakes.forEach(aiSnake => {
+              if (aiSnake && aiSnake.segments && aiSnake.segments.length > 0) {
+                updateAiSnake(aiSnake);
+              }
+            });
+          }
+        }
+        if (directionalLightRef.current && gameState.snakeSegments.length > 0 && gameState.frameCount % 120 === 0) {
+          const head = gameState.snakeSegments[0];
+          if (head && head.position) {
+            const shadowTarget = head.position.clone();
+            directionalLightRef.current.target.position.copy(shadowTarget);
+            directionalLightRef.current.target.updateMatrixWorld();
+            const lightDirection = new THREE.Vector3(0, -1, 0.2).normalize();
+            const shadowCameraDistance = 150;
+            directionalLightRef.current.position.copy(shadowTarget.clone().add(lightDirection.clone().multiplyScalar(-shadowCameraDistance)));
+          }
+        }
+        if (gameState.frameCount % 60 === 0) {
+          scoreText.textContent = `Score: ${gameState.score}`;
+          if (gameState.gameMode === 'timed') {
+            const timerElement = document.getElementById('timer-display');
+            if (timerElement) {
+              timerElement.style.display = 'block';
+              updateTimerDisplay();
+            }
+          }
+        }
+        if (galaxySkyboxRef.current && gameState.frameCount % 480 === 0) {
+          galaxySkyboxRef.current.rotation.y += 0.001;
+        }
+        if (gameState.frameCount % 180 === 0) {
+          for (let i = 0; i < gameState.spheres.length; i += 3) {
+            const sphere = gameState.spheres[i];
+            if (sphere && sphere.userData) {
+              sphere.userData.pulseFactor += sphere.userData.pulseSpeed * 2;
+              sphere.scale.setScalar(1 + Math.sin(sphere.userData.pulseFactor) * 0.1);
+            }
+          }
+        }
+        renderer.render(sceneRef.current, cameraRef.current);
+      } catch (error) {
+        console.error('Animation error:', error);
+        if (gameState.gameRunning) {
+          gameState.gameRunning = false;
+          setTimeout(() => {
+            gameState.gameRunning = true;
+          }, 1000);
+        }
+      }
+    }
+    animate();
+  }
+
+  async function loadSun() {
+    const loader = new GLTFLoader();
+    const skyboxUrls = [galaxy1, galaxy2, galaxy3, galaxy4];
+    const randomSkyboxUrl = skyboxUrls[Math.floor(Math.random() * skyboxUrls.length)];
+    try {
+      const galaxyGltf = await new Promise((resolve, reject) => {
+        loader.load(randomSkyboxUrl, resolve, (xhr) => {
+          setProgress(Math.min(100, (xhr.loaded / xhr.total * 100).toFixed(0)));
+        }, reject);
+      });
+      galaxySkyboxRef.current = galaxyGltf.scene;
+      galaxySkyboxRef.current.scale.set(500, 500, 500);
+      galaxySkyboxRef.current.position.set(0, 0, 0);
+      galaxySkyboxRef.current.traverse(child => {
+        if (child.isMesh) {
+          child.material.side = THREE.BackSide;
+          child.material.depthWrite = false;
+          child.renderOrder = -1000;
+          if (child.material.color) {
+            child.material.color.multiplyScalar(0.8);
+          }
+          if (child.material.emissive) {
+            child.material.emissive.multiplyScalar(1.2);
+          }
+          child.material.emissiveIntensity = 0.6;
+        }
+      });
+      sceneRef.current.add(galaxySkyboxRef.current);
+    } catch (error) {
+      console.warn('Failed to load galaxy skybox, using fallback:', error);
+      const starGeometry = new THREE.BufferGeometry();
+      const starMaterial = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 2,
+        sizeAttenuation: false
+      });
+      const starVertices = [];
+      for (let i = 0; i < 1000; i++) {
+        const radius = 400;
+        const x = (Math.random() - 0.5) * radius;
+        const y = (Math.random() - 0.5) * radius;
+        const z = (Math.random() - 0.5) * radius;
+        starVertices.push(x, y, z);
+      }
+      starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+      const stars = new THREE.Points(starGeometry, starMaterial);
+      sceneRef.current.add(stars);
+      galaxySkyboxRef.current = stars;
+    }
+    directionalLightRef.current = new THREE.DirectionalLight(0xffffff, 2.0);
+    directionalLightRef.current.position.set(0, 400, 0);
+    directionalLightRef.current.target.position.set(0, 0, 0);
+    directionalLightRef.current.castShadow = true;
+    directionalLightRef.current.shadow.mapSize.width = 1024;
+    directionalLightRef.current.shadow.mapSize.height = 1024;
+    directionalLightRef.current.shadow.camera.near = 50;
+    directionalLightRef.current.shadow.camera.far = 600;
+    directionalLightRef.current.shadow.camera.left = -150;
+    directionalLightRef.current.shadow.camera.right = 150;
+    directionalLightRef.current.shadow.camera.top = 150;
+    directionalLightRef.current.shadow.camera.bottom = -150;
+    directionalLightRef.current.shadow.bias = -0.001;
+    directionalLightRef.current.shadow.normalBias = 0.02;
+    directionalLightRef.current.shadow.radius = 2;
+    directionalLightRef.current.shadow.blurSamples = 8;
+    sceneRef.current.add(directionalLightRef.current);
+    sceneRef.current.add(directionalLightRef.current.target);
+    const sunPosition = new THREE.Vector3(0, 400, 0);
+    const sunGeometry = new THREE.CircleGeometry(7.5, 32);
+    const sunMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide
+    });
+    const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+    sunMesh.position.copy(sunPosition);
+    sunMesh.lookAt(cameraRef.current.position);
+    sceneRef.current.add(sunMesh);
+    await createPlatform(gameRef, sceneRef.current, loader);
+    initializeSpheres(gameRef, sceneRef.current);
+  }
+
+  return loading ? (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%)', color: '#00ffff', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'monospace', zIndex: 10002 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
+        {/* Add stars loop here, same as in ConnectWalletScreen */}
+      </div>
+      <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
+      <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
+      <div style={{ width: '300px', height: '4px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '2px', marginBottom: '15px', overflow: 'hidden', zIndex: 2 }}>
+        <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #00ffff, #4169e1)', borderRadius: '2px', transition: 'width 0.3s ease', boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }} />
+      </div>
+      <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)', letterSpacing: '1px', zIndex: 2 }}>{progress}%</div>
+    </div>
+  ) : (
+    <div>
+      <div className="score-text">Score: {score}</div>
+      {gameRef.current.gameMode === 'timed' && <div className="timer-text">Time: {Math.floor(timeRemaining / 60)}:{timeRemaining % 60 < 10 ? '0' : ''}{timeRemaining % 60}</div>}
+    </div>
+  );
 }
 
 export default Game;
