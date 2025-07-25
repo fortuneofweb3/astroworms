@@ -59,6 +59,13 @@ async function createPlatform(gameRef, scene, loader) {
 
 function initializeSnake(gameRef, scene) {
   console.log('Placeholder: initializeSnake not implemented');
+  const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+  const headMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const head = new THREE.Mesh(headGeometry, headMaterial);
+  head.position.set(0, 0.5, 0);
+  head.castShadow = true;
+  gameRef.current.snakeSegments = [head];
+  scene.add(head);
 }
 
 function initializeAiSnakes(gameRef, scene) {
@@ -67,6 +74,27 @@ function initializeAiSnakes(gameRef, scene) {
 
 function initializeSpheres(gameRef, scene) {
   console.log('Placeholder: initializeSpheres not implemented');
+  const sphereGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+  const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  gameRef.current.spheres = [];
+  for (let i = 0; i < gameRef.current.maxSphereCount; i++) {
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial.clone());
+    sphere.position.set(
+      (Math.random() - 0.5) * gameRef.current.platform.radius * 2,
+      0,
+      (Math.random() - 0.5) * gameRef.current.platform.radius * 2
+    );
+    sphere.castShadow = true;
+    sphere.receiveShadow = true;
+    if (Math.random() < 0.1) {
+      sphere.userData.type = 'powerUp';
+      sphere.material.color.set(0xff0000);
+    } else {
+      sphere.userData.type = 'fragment';
+    }
+    gameRef.current.spheres.push(sphere);
+    scene.add(sphere);
+  }
 }
 
 function showTimedTutorial() {
@@ -83,6 +111,11 @@ function checkAchievements(gameRef) {
 
 function animate(gameRef, sceneRef, cameraRef, rendererRef, inputMapRef, directionalLightRef, galaxySkyboxRef, animationFrameId, wallet, setIsInGame, setIsInStartScreen) {
   console.log('Placeholder: animate not implemented');
+  function loop() {
+    animationFrameId.current = requestAnimationFrame(loop);
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
+  }
+  loop();
 }
 
 function showPauseMenu() {
@@ -116,7 +149,6 @@ function Game() {
   async function createUserAndProfile() {
     if (isProfileCreated) return;
     try {
-      // Check if user exists
       const users = await client.findUsers({
         wallets: [wallet.publicKey.toString()]
       }).then(({ user }) => user);
@@ -129,14 +161,13 @@ function Game() {
         return;
       }
 
-      // Create new user if not exists
       const { createNewUserTransaction: txResponse } = await client.createNewUserTransaction({
         wallet: wallet.publicKey.toString(),
         payer: wallet.publicKey.toString(),
         info: {
           name: "Astroworm Player",
-          bio: "Cosmic Serpent in the Reality Coil",
-          pfp: "https://example.com/default-pfp.png"
+          pfp: "https://example.com/default-pfp.png",
+          bio: "Cosmic Serpent in the Reality Coil"
         }
       });
       await sendClientTransactions(client, wallet, txResponse);
@@ -1543,7 +1574,7 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
   return loading ? (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%)', color: '#00ffff', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'monospace', zIndex: 10002 }}>
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
-        {/* Add stars loop here, same as in ConnectWalletScreen */}
+        /* Add stars loop here, same as in ConnectWalletScreen */
       </div>
       <div style={{ fontSize: '32px', fontWeight: 'bold', letterSpacing: '3px', marginBottom: '20px', textAlign: 'center', zIndex: 2 }}>INITIALIZING REALITY COIL</div>
       <div style={{ fontSize: '18px', opacity: 0.8, marginBottom: '30px', textAlign: 'center', zIndex: 2 }}>Loading cosmic assets...</div>
