@@ -48,12 +48,6 @@ function Game() {
   const { setVisible } = useWalletModal();
 
   useEffect(() => {
-    if (isProfileCreated) {
-      setIsInStartScreen(true);
-    }
-  }, [isProfileCreated]);
-
-  useEffect(() => {
     if (wallet.connected) {
       createUserAndProfile();
     }
@@ -607,8 +601,13 @@ function StartScreen({ onStartGame, wallet }) {
     const backButton = createMenuButton('BACK TO MAIN MENU', () => {
       placeholderScreen.classList.remove('fade-in');
       placeholderScreen.classList.add('fade-out');
-      setTimeout(() => placeholderScreen.remove(), 300);
-      backToStart();
+      setTimeout(() => {
+        placeholderScreen.remove();
+        document.body.appendChild(startScreen);
+        startScreen.style.opacity = '0';
+        startScreen.classList.remove('fade-out');
+        startScreen.classList.add('fade-in');
+      }, 300);
     });
     placeholderScreen.appendChild(pageTitle);
     placeholderScreen.appendChild(comingSoonText);
@@ -776,7 +775,10 @@ function StartScreen({ onStartGame, wallet }) {
       achievementsScreen.classList.add('fade-out');
       setTimeout(() => {
         achievementsScreen.remove();
-        backToStart();
+        document.body.appendChild(startScreen);
+        startScreen.style.opacity = '0';
+        startScreen.classList.remove('fade-out');
+        startScreen.classList.add('fade-in');
       }, 300);
     });
     footer.appendChild(backButton);
@@ -852,7 +854,10 @@ function StartScreen({ onStartGame, wallet }) {
       gameModeScreen.classList.add('fade-out');
       setTimeout(() => {
         gameModeScreen.remove();
-        backToStart();
+        document.body.appendChild(startScreen);
+        startScreen.style.opacity = '0';
+        startScreen.classList.remove('fade-out');
+        startScreen.classList.add('fade-in');
       }, 300);
     });
     gameModeButtonContainer.appendChild(playVsAiButton);
@@ -928,6 +933,8 @@ function StartScreen({ onStartGame, wallet }) {
         startScreen.remove();
         showGameModeScreen(() => {
           document.body.appendChild(startScreen);
+          startScreen.style.opacity = '0';
+          startScreen.classList.remove('fade-out');
           startScreen.classList.add('fade-in');
         });
       }, 300);
@@ -939,6 +946,8 @@ function StartScreen({ onStartGame, wallet }) {
         startScreen.remove();
         showAchievementsScreen(() => {
           document.body.appendChild(startScreen);
+          startScreen.style.opacity = '0';
+          startScreen.classList.remove('fade-out');
           startScreen.classList.add('fade-in');
         });
       }, 300);
@@ -950,6 +959,8 @@ function StartScreen({ onStartGame, wallet }) {
         startScreen.remove();
         showPlaceholderPage('LEADERBOARD', () => {
           document.body.appendChild(startScreen);
+          startScreen.style.opacity = '0';
+          startScreen.classList.remove('fade-out');
           startScreen.classList.add('fade-in');
         });
       }, 300);
@@ -961,6 +972,8 @@ function StartScreen({ onStartGame, wallet }) {
         startScreen.remove();
         showPlaceholderPage('PROFILE', () => {
           document.body.appendChild(startScreen);
+          startScreen.style.opacity = '0';
+          startScreen.classList.remove('fade-out');
           startScreen.classList.add('fade-in');
         });
       }, 300);
@@ -972,6 +985,8 @@ function StartScreen({ onStartGame, wallet }) {
         startScreen.remove();
         showPlaceholderPage('FACTIONS', () => {
           document.body.appendChild(startScreen);
+          startScreen.style.opacity = '0';
+          startScreen.classList.remove('fade-out');
           startScreen.classList.add('fade-in');
         });
       }, 300);
@@ -983,6 +998,8 @@ function StartScreen({ onStartGame, wallet }) {
         startScreen.remove();
         showPlaceholderPage('SETTINGS', () => {
           document.body.appendChild(startScreen);
+          startScreen.style.opacity = '0';
+          startScreen.classList.remove('fade-out');
           startScreen.classList.add('fade-in');
         });
       }, 300);
@@ -1399,98 +1416,6 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
         sceneRef.current.add(stars);
         galaxySkyboxRef.current = stars;
       });
-      directionalLightRef.current = new THREE.DirectionalLight(0xffffff, 2.0);
-      directionalLightRef.current.position.set(0, 400, 0);
-      directionalLightRef.current.target.position.set(0, 0, 0);
-      directionalLightRef.current.castShadow = true;
-      directionalLightRef.current.shadow.mapSize.width = 1024;
-      directionalLightRef.current.shadow.mapSize.height = 1024;
-      directionalLightRef.current.shadow.camera.near = 50;
-      directionalLightRef.current.shadow.camera.far = 600;
-      directionalLightRef.current.shadow.camera.left = -150;
-      directionalLightRef.current.shadow.camera.right = 150;
-      directionalLightRef.current.shadow.camera.top = 150;
-      directionalLightRef.current.shadow.camera.bottom = -150;
-      directionalLightRef.current.shadow.bias = -0.001;
-      directionalLightRef.current.shadow.normalBias = 0.02;
-      directionalLightRef.current.shadow.radius = 2;
-      directionalLightRef.current.shadow.blurSamples = 8;
-      sceneRef.current.add(directionalLightRef.current);
-      sceneRef.current.add(directionalLightRef.current.target);
-      const sunPosition = new THREE.Vector3(0, 400, 0);
-      const sunGeometry = new THREE.CircleGeometry(7.5, 32);
-      const sunMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide
-      });
-      const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-      sunMesh.position.copy(sunPosition);
-      sunMesh.lookAt(cameraRef.current.position);
-      sceneRef.current.add(sunMesh);
-      createPlatform(gameRef, sceneRef.current, loader).then(() => {
-        gameRef.current.food = [];
-        initializeSpheres(gameRef, sceneRef.current);
-        setLoading(false);
-      }).catch(error => {
-        console.error('Error loading game assets:', error);
-        setLoading(false);
-      });
-    }
-    loadSun();
-  }, []);
-
-  useEffect(() => {
-    if (!loading) {
-      gameRef.current.gameRunning = true;
-      gameRef.current.gameStarted = true;
-      gameRef.current.originalSnakeSpeed = gameRef.current.gameMode === 'timed' ? 0.0607500 * 1.5 : 0.0607500;
-      gameRef.current.snakeSpeed = gameRef.current.originalSnakeSpeed;
-      gameRef.current.gamesPlayed += 1;
-      gameRef.current.gameStartTime = Date.now();
-      initializeSnake(gameRef, sceneRef.current);
-      initializeAiSnakes(gameRef, sceneRef.current);
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      if (mobileControlsRef.current) {
-        mobileControlsRef.current.style.display = isTouchDevice ? 'flex' : 'none';
-      }
-      document.getElementById('pause-button').style.display = 'block';
-      if (gameRef.current.gameMode === 'timed') {
-        startTimer(gameRef, timerIntervalRef);
-        if (!isTouchDevice) showTimedTutorial();
-      } else {
-        if (!isTouchDevice) showTutorial();
-      }
-      checkAchievements(gameRef);
-      saveAchievements(wallet, gameRef);
-      animate(gameRef, sceneRef, cameraRef, rendererRef, inputMapRef, directionalLightRef, galaxySkyboxRef, animationFrameId, wallet, setIsInGame, setIsInStartScreen);
-    }
-  }, [loading]);
-
-  function loadSun() {
-    const loader = new GLTFLoader();
-    const skyboxUrls = [galaxy1, galaxy2, galaxy3, galaxy4];
-    const randomSkyboxUrl = skyboxUrls[Math.floor(Math.random() * skyboxUrls.length)];
-    loader.load(randomSkyboxUrl, gltf => {
-      galaxySkyboxRef.current = gltf.scene;
-      galaxySkyboxRef.current.scale.set(500, 500, 500);
-      galaxySkyboxRef.current.position.set(0, 0, 0);
-      galaxySkyboxRef.current.traverse(child => {
-        if (child.isMesh) {
-          child.material.side = THREE.BackSide;
-          child.material.depthWrite = false;
-          child.renderOrder = -1000;
-          if (child.material.color) {
-            child.material.color.multiplyScalar(0.8);
-          }
-          if (child.material.emissive) {
-            child.material.emissive.multiplyScalar(1.2);
-          }
-          child.material.emissiveIntensity = 0.6;
-        }
-      });
-      sceneRef.current.add(galaxySkyboxRef.current);
       directionalLightRef.current = new THREE.DirectionalLight(0xffffff, 2.0);
       directionalLightRef.current.position.set(0, 400, 0);
       directionalLightRef.current.target.position.set(0, 0, 0);
