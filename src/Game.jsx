@@ -48,6 +48,12 @@ function Game() {
   const { setVisible } = useWalletModal();
 
   useEffect(() => {
+    if (isProfileCreated) {
+      setIsInStartScreen(true);
+    }
+  }, [isProfileCreated]);
+
+  useEffect(() => {
     if (wallet.connected) {
       createUserAndProfile();
     }
@@ -1348,92 +1354,90 @@ function GameCanvas({ mode, wallet, setIsInGame, setIsInStartScreen }) {
     }
     let preloadedGameMusic = [];
     function loadSun() {
-      return new Promise((resolve, reject) => {
-        const loader = new GLTFLoader();
-        const skyboxUrls = [galaxy1, galaxy2, galaxy3, galaxy4];
-        const randomSkyboxUrl = skyboxUrls[Math.floor(Math.random() * skyboxUrls.length)];
-        loader.load(randomSkyboxUrl, gltf => {
-          galaxySkyboxRef.current = gltf.scene;
-          galaxySkyboxRef.current.scale.set(500, 500, 500);
-          galaxySkyboxRef.current.position.set(0, 0, 0);
-          galaxySkyboxRef.current.traverse(child => {
-            if (child.isMesh) {
-              child.material.side = THREE.BackSide;
-              child.material.depthWrite = false;
-              child.renderOrder = -1000;
-              if (child.material.color) {
-                child.material.color.multiplyScalar(0.8);
-              }
-              if (child.material.emissive) {
-                child.material.emissive.multiplyScalar(1.2);
-              }
-              child.material.emissiveIntensity = 0.6;
+      const loader = new GLTFLoader();
+      const skyboxUrls = [galaxy1, galaxy2, galaxy3, galaxy4];
+      const randomSkyboxUrl = skyboxUrls[Math.floor(Math.random() * skyboxUrls.length)];
+      loader.load(randomSkyboxUrl, gltf => {
+        galaxySkyboxRef.current = gltf.scene;
+        galaxySkyboxRef.current.scale.set(500, 500, 500);
+        galaxySkyboxRef.current.position.set(0, 0, 0);
+        galaxySkyboxRef.current.traverse(child => {
+          if (child.isMesh) {
+            child.material.side = THREE.BackSide;
+            child.material.depthWrite = false;
+            child.renderOrder = -1000;
+            if (child.material.color) {
+              child.material.color.multiplyScalar(0.8);
             }
-          });
-          sceneRef.current.add(galaxySkyboxRef.current);
-        }, (xhr) => {
-          setProgress(Math.min(100, (xhr.loaded / xhr.total * 100).toFixed(0)));
-        }, error => {
-          console.warn('Failed to load galaxy skybox, using fallback:', error);
-          const starGeometry = new THREE.BufferGeometry();
-          const starMaterial = new THREE.PointsMaterial({
-            color: 0xffffff,
-            size: 2,
-            sizeAttenuation: false
-          });
-          const starVertices = [];
-          for (let i = 0; i < 1000; i++) {
-            const radius = 400;
-            const x = (Math.random() - 0.5) * radius;
-            const y = (Math.random() - 0.5) * radius;
-            const z = (Math.random() - 0.5) * radius;
-            starVertices.push(x, y, z);
+            if (child.material.emissive) {
+              child.material.emissive.multiplyScalar(1.2);
+            }
+            child.material.emissiveIntensity = 0.6;
           }
-          starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-          const stars = new THREE.Points(starGeometry, starMaterial);
-          sceneRef.current.add(stars);
-          galaxySkyboxRef.current = stars;
         });
-        directionalLightRef.current = new THREE.DirectionalLight(0xffffff, 2.0);
-        directionalLightRef.current.position.set(0, 400, 0);
-        directionalLightRef.current.target.position.set(0, 0, 0);
-        directionalLightRef.current.castShadow = true;
-        directionalLightRef.current.shadow.mapSize.width = 1024;
-        directionalLightRef.current.shadow.mapSize.height = 1024;
-        directionalLightRef.current.shadow.camera.near = 50;
-        directionalLightRef.current.shadow.camera.far = 600;
-        directionalLightRef.current.shadow.camera.left = -150;
-        directionalLightRef.current.shadow.camera.right = 150;
-        directionalLightRef.current.shadow.camera.top = 150;
-        directionalLightRef.current.shadow.camera.bottom = -150;
-        directionalLightRef.current.shadow.bias = -0.001;
-        directionalLightRef.current.shadow.normalBias = 0.02;
-        directionalLightRef.current.shadow.radius = 2;
-        directionalLightRef.current.shadow.blurSamples = 8;
-        sceneRef.current.add(directionalLightRef.current);
-        sceneRef.current.add(directionalLightRef.current.target);
-        const sunPosition = new THREE.Vector3(0, 400, 0);
-        const sunGeometry = new THREE.CircleGeometry(7.5, 32);
-        const sunMaterial = new THREE.MeshBasicMaterial({
+        sceneRef.current.add(galaxySkyboxRef.current);
+      }, (xhr) => {
+        setProgress(Math.min(100, (xhr.loaded / xhr.total * 100).toFixed(0)));
+      }, error => {
+        console.warn('Failed to load galaxy skybox, using fallback:', error);
+        const starGeometry = new THREE.BufferGeometry();
+        const starMaterial = new THREE.PointsMaterial({
           color: 0xffffff,
-          transparent: true,
-          opacity: 0.7,
-          side: THREE.DoubleSide
+          size: 2,
+          sizeAttenuation: false
         });
-        const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-        sunMesh.position.copy(sunPosition);
-        sunMesh.lookAt(cameraRef.current.position);
-        sceneRef.current.add(sunMesh);
-        createPlatform(gameRef, sceneRef.current, loader).then(() => {
-          gameRef.current.food = [];
-          initializeSpheres(gameRef, sceneRef.current);
-          setLoading(false);
-        }).catch(error => {
-          console.error('Error loading game assets:', error);
-          setLoading(false);
-        });
+        const starVertices = [];
+        for (let i = 0; i < 1000; i++) {
+          const radius = 400;
+          const x = (Math.random() - 0.5) * radius;
+          const y = (Math.random() - 0.5) * radius;
+          const z = (Math.random() - 0.5) * radius;
+          starVertices.push(x, y, z);
+        }
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        sceneRef.current.add(stars);
+        galaxySkyboxRef.current = stars;
       });
-    };
+      directionalLightRef.current = new THREE.DirectionalLight(0xffffff, 2.0);
+      directionalLightRef.current.position.set(0, 400, 0);
+      directionalLightRef.current.target.position.set(0, 0, 0);
+      directionalLightRef.current.castShadow = true;
+      directionalLightRef.current.shadow.mapSize.width = 1024;
+      directionalLightRef.current.shadow.mapSize.height = 1024;
+      directionalLightRef.current.shadow.camera.near = 50;
+      directionalLightRef.current.shadow.camera.far = 600;
+      directionalLightRef.current.shadow.camera.left = -150;
+      directionalLightRef.current.shadow.camera.right = 150;
+      directionalLightRef.current.shadow.camera.top = 150;
+      directionalLightRef.current.shadow.camera.bottom = -150;
+      directionalLightRef.current.shadow.bias = -0.001;
+      directionalLightRef.current.shadow.normalBias = 0.02;
+      directionalLightRef.current.shadow.radius = 2;
+      directionalLightRef.current.shadow.blurSamples = 8;
+      sceneRef.current.add(directionalLightRef.current);
+      sceneRef.current.add(directionalLightRef.current.target);
+      const sunPosition = new THREE.Vector3(0, 400, 0);
+      const sunGeometry = new THREE.CircleGeometry(7.5, 32);
+      const sunMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide
+      });
+      const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+      sunMesh.position.copy(sunPosition);
+      sunMesh.lookAt(cameraRef.current.position);
+      sceneRef.current.add(sunMesh);
+      createPlatform(gameRef, sceneRef.current, loader).then(() => {
+        gameRef.current.food = [];
+        initializeSpheres(gameRef, sceneRef.current);
+        setLoading(false);
+      }).catch(error => {
+        console.error('Error loading game assets:', error);
+        setLoading(false);
+      });
+    }
     loadSun();
   }, []);
 
