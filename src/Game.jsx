@@ -37,7 +37,6 @@ const analytics = getAnalytics(app);
 const db = getDatabase(app);
 
 const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
-const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
 
 function Game() {
   const [isProfileCreated, setIsProfileCreated] = useState(false);
@@ -56,70 +55,21 @@ function Game() {
   async function createUserAndProfile() {
     if (isProfileCreated) return;
     try {
-      // Check if user exists
-      const users = await client.findUsers({
-        wallets: [wallet.publicKey.toString()]
-      }).then(({ user }) => user);
+      const { authRequest: { message: authRequest } } = await client.authRequest({
+        wallet: wallet.publicKey.toString()
+      });
+      const encodedMessage = new TextEncoder().encode(authRequest);
+      const signedUIntArray = await wallet.signMessage(encodedMessage);
+      const signature = base58.encode(signedUIntArray);
+      const { authConfirm } = await client.authConfirm({
+        wallet: wallet.publicKey.toString(),
+        signature
+      });
+      const accessToken = authConfirm.accessToken;
 
-      let accessToken;
-      if (users.length > 0) {
-        console.log("User already exists, logging in...");
-        const { authRequest: { message: authRequest } } = await client.authRequest({
-          wallet: wallet.publicKey.toString()
-        });
-        const encodedMessage = new TextEncoder().encode(authRequest);
-        const signedUIntArray = await wallet.signMessage(encodedMessage);
-        const signature = base58.encode(signedUIntArray);
-        const { authConfirm } = await client.authConfirm({
-          wallet: wallet.publicKey.toString(),
-          signature
-        });
-        accessToken = authConfirm.accessToken;
-
-        // Check if profile exists
-        const profiles = await client.findProfiles({
-          userIds: [users[0].id]
-        }).then(({ profile }) => profile);
-
-        if (profiles.length > 0) {
-          console.log("Profile already exists, skipping creation.");
-          setIsProfileCreated(true);
-          setIsInStartScreen(true);
-          return;
-        }
-      } else {
-        // Create new user if not exists
-        const { createNewUserTransaction: txResponse } = await client.createNewUserTransaction({
-          wallet: wallet.publicKey.toString(),
-          payer: wallet.publicKey.toString(),
-          info: {
-            name: "Astroworm Player",
-            bio: "Cosmic Serpent in the Reality Coil",
-            pfp: "https://example.com/default-pfp.png"
-          }
-        });
-        await sendClientTransactions(client, wallet, txResponse);
-        console.log("New user created.");
-
-        // Authenticate the new user
-        const { authRequest: { message: authRequest } } = await client.authRequest({
-          wallet: wallet.publicKey.toString()
-        });
-        const encodedMessage = new TextEncoder().encode(authRequest);
-        const signedUIntArray = await wallet.signMessage(encodedMessage);
-        const signature = base58.encode(signedUIntArray);
-        const { authConfirm } = await client.authConfirm({
-          wallet: wallet.publicKey.toString(),
-          signature
-        });
-        accessToken = authConfirm.accessToken;
-      }
-
-      // Create profile
-      const { createNewProfileTransaction: profileTxResponse } = await client.createNewProfileTransaction({
-        project: PROJECT_ADDRESS,
+      const { createUpdateUserTransaction: txResponse } = await client.createUpdateUserTransaction({
         payer: wallet.publicKey.toString(),
-        identity: "main",
+        populateCivic: false,
         info: {
           name: "Astroworm Player",
           bio: "Cosmic Serpent in the Reality Coil",
@@ -132,9 +82,9 @@ function Game() {
           }
         }
       });
-      await sendClientTransactions(client, wallet, profileTxResponse);
+      await sendClientTransactions(client, wallet, txResponse);
 
-      // Save to Firebase
+      // Save profile to Firebase
       const userId = wallet.publicKey.toString();
       const userRef = ref(db, 'users/' + userId);
       await set(userRef, {
@@ -150,9 +100,9 @@ function Game() {
 
       setIsProfileCreated(true);
       setIsInStartScreen(true);
-      console.log("Profile created and saved to Firebase");
+      console.log("User and profile created and saved to Firebase");
     } catch (error) {
-      console.error('Error creating profile:', error);
+      console.error('Error creating user and profile:', error);
       if (error.response) console.error('API response:', error.response.data);
     }
   }
