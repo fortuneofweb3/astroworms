@@ -37,9 +37,10 @@ const analytics = getAnalytics(app);
 const db = getDatabase(app);
 
 const PROJECT_ADDRESS = "2R8i1kWpksStPiJ1GpkDouxB63cW8Q34jG5iv7divmVu";
+const TREE_ADDRESS = "LiY9Rg2exAC1KRSYRqY79FN1PgWL6sHyKy5nhYnWERh";
 
 function Game() {
-  const [isProfileCreated, setIsProfileCreated] = useState(false);
+  const [isProfileCreated, setIsProfileCreated] = useState(localStorage.getItem('isProfileCreated') === 'true');
   const [isInStartScreen, setIsInStartScreen] = useState(false);
   const [isInGame, setIsInGame] = useState(false);
   const [gameMode, setGameMode] = useState(null);
@@ -55,31 +56,16 @@ function Game() {
   async function createUserAndProfile() {
     if (isProfileCreated) return;
     try {
-      const { authRequest: { message: authRequest } } = await client.authRequest({
-        wallet: wallet.publicKey.toString()
-      });
-      const encodedMessage = new TextEncoder().encode(authRequest);
-      const signedUIntArray = await wallet.signMessage(encodedMessage);
-      const signature = base58.encode(signedUIntArray);
-      const { authConfirm } = await client.authConfirm({
+      const { createNewUserWithProfileTransaction: txResponse } = await client.createNewUserWithProfileTransaction({
+        project: PROJECT_ADDRESS,
         wallet: wallet.publicKey.toString(),
-        signature
-      });
-      const accessToken = authConfirm.accessToken;
-
-      const { createUpdateUserTransaction: txResponse } = await client.createUpdateUserTransaction({
         payer: wallet.publicKey.toString(),
-        populateCivic: false,
-        info: {
+        profileIdentity: "main",
+        merkleTree: TREE_ADDRESS,
+        userInfo: {
           name: "Astroworm Player",
           bio: "Cosmic Serpent in the Reality Coil",
           pfp: "https://example.com/default-pfp.png"
-        }
-      }, {
-        fetchOptions: {
-          headers: {
-            authorization: `Bearer ${accessToken}`
-          }
         }
       });
       await sendClientTransactions(client, wallet, txResponse);
@@ -98,6 +84,7 @@ function Game() {
         wallet: userId
       });
 
+      localStorage.setItem('isProfileCreated', 'true');
       setIsProfileCreated(true);
       setIsInStartScreen(true);
       console.log("User and profile created and saved to Firebase");
